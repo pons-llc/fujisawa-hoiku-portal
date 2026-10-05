@@ -82,7 +82,7 @@
     const per = ps.map(x => ({ ...x, a1: parentA1(x.p) }));
     per.forEach(x => lines.a1.push(`${x.who}：${x.a1.label} → ${x.a1.score ?? '—'}点`));
     let a1;
-    if (single) { a1 = 11; lines.a1.push('ひとり親世帯のため A-1基礎点数は 11点'); }
+    if (single) { a1 = 11; lines.a1.push('ひとり親世帯のため A-1基礎点数は 11点'); if (ps.length === 2) warnings.push('ひとり親世帯にチェックがありますが、父母の両方が「いる」になっています。不在の保護者は「マイ申請」で「いない」にしてください（調整項目の計算に影響します）。'); }
     else if (per.length === 2 && per.every(x => x.a1.score != null)) { a1 = Math.min(...per.map(x => x.a1.score)); lines.a1.push(`父母のうち低い方を採用 → ${a1}点`); }
     else { a1 = null; warnings.push('父母の保育の必要性事由を入力してください。'); }
 
@@ -92,10 +92,10 @@
     add(h.siblingSameFacility, 2, '②きょうだいが在園している施設を希望（その施設の審査のみ）');
     add(s.children.length >= 3, 2, '③本人含めきょうだい3人以上が同時に希望');
     add(h.arrears, -20, '④保育料の滞納あり');
-    const nurseryJobs = ps.map(x => x.p.nurseryJob);
-    const excludedNursery = app.transfer || h.residence === 'outsideWork';
-    add(!excludedNursery && nurseryJobs.includes('teacher'), 6, '⑤市内認可保育施設等で保育士・幼稚園教諭として復職/就労内定');
-    add(!excludedNursery && !nurseryJobs.includes('teacher') && nurseryJobs.includes('assistant'), 2, '⑥同施設で保育補助者として復職/就労内定');
+    // ⑤⑥：転園申請は対象外。市外在住者（藤沢市在勤）は「就労内定」のみ対象外（復職は対象）
+    const nurseryJobs = app.transfer ? [] : ps.filter(x => !(h.residence === 'outsideWork' && x.p.reason === 'offer')).map(x => x.p.nurseryJob);
+    add(nurseryJobs.includes('teacher'), 6, '⑤市内認可保育施設等で保育士・幼稚園教諭として復職/就労内定');
+    add(!nurseryJobs.includes('teacher') && nurseryJobs.includes('assistant'), 2, '⑥同施設で保育補助者として復職/就労内定');
     const noNurseryBonus = !(nurseryJobs.includes('teacher') || nurseryJobs.includes('assistant'));
     add((h.residence === 'outsideWork' && noNurseryBonus) || (h.residence === 'moving' && !h.contractDocs), -10, '⑦市外在住者の在勤要件申込／転入先契約書等の未提出');
     add(anyIkukyu && app.ikukyuChoice === 'B' && !outsideResident, -30, '⑧育休B申込み（育休延長許容）');
@@ -127,7 +127,8 @@
     const illnessHousehold = per.some(x => ['illness', 'disability', 'care'].includes(x.p.reason));
     addC(h.familyCareC7 && !illnessHousehold, 2, '⑦同居家族に障がい者手帳（3級以上）等・要介護3以上');
     addC(h.absentParent !== 'none' && !single, 2, '⑧長期入院・単身赴任で昼夜不在（育休取得者本人の単身赴任は除く）');
-    addC(anyIkukyu, 2, '⑨入所に伴い育児休業から復職見込み');
+    // ⑨：育児・介護休業法に基づく育休を取得できない（自営・役員等）場合は除く
+    addC(ps.some(x => x.p.ikukyu && !x.p.selfEmployed), 2, '⑨入所に伴い育児休業から復職見込み');
     addC(single && h.noRelativeUnder65, 3, '⑩ひとり親世帯で65歳未満の同居親族なし');
 
     const base = a1 == null ? null : a1 + a2;
