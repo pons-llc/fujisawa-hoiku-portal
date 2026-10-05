@@ -67,7 +67,7 @@
   // ============ ルーター ============
   const views = {};
   let cleanup = null;
-  const TITLES = { home: '保育所申込（藤沢市）', facilities: '保育園をさがす', profile: 'マイ申請', score: '点数・必要書類', forms: '申込書PDF', guide: '入園案内', terms: '利用規約', privacy: 'プライバシーポリシー' };
+  const TITLES = { home: '保育所申込（藤沢市）', facilities: '保育園をさがす', profile: 'マイ申請', score: '点数・保育料', forms: '申込書PDF', guide: '入園案内', terms: '利用規約', privacy: 'プライバシーポリシー' };
   const SUB_PAGES = ['guide', 'terms', 'privacy'];
   function route() {
     let name = (location.hash || '#home').slice(1).split('?')[0];
@@ -76,6 +76,7 @@
     $$('#nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + name));
     $('#appTitle').textContent = TITLES[name] || '保育所申込';
     document.body.dataset.view = name;
+    document.body.classList.toggle('chat-mode', name === 'profile' && ((S().ui && S().ui.profileMode) || 'chat') === 'chat');
     $('#backBtn').hidden = !SUB_PAGES.includes(name);
     closeMenu();
     if (cleanup) { try { cleanup(); } catch (e) {} cleanup = null; }
@@ -103,10 +104,10 @@
       <h3 class="section-title">申込みの準備</h3>
       <div class="list">
         ${tile('#facilities', '1. 保育園をさがす', `地図から探して希望園に追加（${nWish}/10）`, '📍')}
-        ${tile('#profile', '2. マイ申請を入力', filled ? '入力あり・' + (s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('ja-JP') + ' 更新' : '') : '未入力', '📝')}
-        ${tile('#score', '3. 点数・必要書類を確認', '基礎点数・優先順位・保育料の目安・書類リスト', '📊')}
+        ${tile('#profile', '2. マイ申請を入力・必要書類', filled ? '入力あり・' + (s.updatedAt ? new Date(s.updatedAt).toLocaleDateString('ja-JP') + ' 更新' : '') : '未入力', '📝')}
+        ${tile('#score', '3. 点数・保育料を確認', '基礎点数・優先順位・保育料の目安', '📊')}
         ${tile('#forms', '4. 申込書PDFを作る', '市の様式に印字した画像PDF（コンビニ印刷向け）', '🖨️')}
-        ${tile('#guide', '入園案内', '申込ナビの要点・締切カレンダー・よくある質問', '📖')}
+        ${tile('#guide', '入園案内', '申込ナビの検索・要点・締切カレンダー・よくある質問', '📖')}
       </div>
       ${DISCLAIMER}
       <div class="grid cols-2">
@@ -129,6 +130,9 @@
     const classRows = R.classRanges.map(r => `<tr><td>${r.cls}歳児クラス</td><td>${r.cls === 0 ? '2026年4月2日以降生まれ' : `${r.from.replace(/-/g, '/')} 〜 ${r.to.replace(/-/g, '/')} 生まれ`}</td></tr>`).join('');
     const months = []; for (let i = 0; i < 12; i++) { const d = new Date(2027, 3 + i, 1); months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`); }
     el.innerHTML = `
+      <form class="searchbar guide-search" id="kform" role="search"><input type="search" id="kq" placeholder="申込ナビを検索（例：育休 点数、4月 締切）" aria-label="申込ナビをキーワード検索" autocomplete="off" value="${esc(window.__kq || '')}"></form>
+      <div class="row ex-chips">${['4月1次 締切', '育休B', '保育料 計算', '必要書類', '見学', '転園', '求職中', '内定辞退'].map(x => `<button type="button" class="legend-chip" data-ex="${x}">${x}</button>`).join('')}</div>
+      <div id="kresults"></div>
       <p>原本：<a href="${NAVI_PDF}" target="_blank" rel="noopener">ふじさわ認可保育施設 申込ナビ（PDF）</a> ／ <a href="docs/r9bessi_checklist.pdf" target="_blank" rel="noopener">申込書類チェックリスト（PDF）</a> ／ <a href="${R.officialUrl}" target="_blank" rel="noopener">申込書類のダウンロード（藤沢市HP）</a></p>
       <div class="note">以下は原本を要約したものです。要約の過程で誤りや省略がある可能性があります。<strong>必ず原本をご確認ください。</strong></div>
       <div class="card"><h3>締切日カレンダー</h3>
@@ -149,6 +153,23 @@
       ${sec('その他の事業（一時預かり・休日保育・病児保育など）', `<ul><li>一時預かり：4時間以内1,200円／8時間以内2,400円（原則週3日以内）</li><li>休日保育：認可施設利用児童対象・0円（キディ鵠沼・藤沢、キディ湘南C-X、どれみチャイルドくらぶ にじ）</li><li>病児保育2,000円/日・病後児保育1,500円/日</li><li>こども誰でも通園制度：0歳6か月〜3歳未満、300円/時間</li><li>予約は藤沢市特別保育予約システム https://fujisawa.hoiku.michi-shiru.jp/</li></ul>`, 25)}
       ${sec('相談窓口', `<p>${esc(R.contact)}</p><p>保育コンシェルジュ（予約制・ふじまどでオンライン予約、電話相談可）。</p>`, 24)}
     `;
+    // キーワード検索
+    const highlight = (text, q) => { let h = esc(text); Search.terms(q).forEach(t => { h = h.split(esc(t)).join(`<mark>${esc(t)}</mark>`); }); return h; };
+    const run = q => {
+      window.__kq = q; $('#kq', el).value = q;
+      const box = $('#kresults', el);
+      if (!q.trim()) { box.innerHTML = ''; return; }
+      const hits = Search.search(q);
+      box.innerHTML = `<div class="card kres"><div class="row" style="justify-content:space-between"><strong>「${esc(q)}」の検索結果 ${hits.length}件</strong><button type="button" class="btn small" id="kclear">閉じる</button></div>`
+        + (hits.length ? hits.map(h => `<div class="hit"><div class="src">${h.doc.kind === 'faq' ? 'Q&A（要約）' : '申込ナビ本文'}・P${h.doc.page}「${esc(h.doc.title)}」 ${pageLink(h.doc.page, '原文を開く')}</div><pre>${highlight(h.doc.text.normalize('NFKC'), q)}</pre></div>`).join('') : '<p>該当する記載が見つかりませんでした。言い換えるか、保育課（0466-50-3526）へお問い合わせください。</p>')
+        + '<p class="sheet-note">キーワードの一致で探しています。要約Q&Aは原本を要約したもので、正確性は保証しません。必ず原文で確認してください。</p></div>';
+    };
+    $('#kform', el).onsubmit = e => { e.preventDefault(); $('#kq', el).blur(); run($('#kq', el).value); };
+    el.addEventListener('click', e => {
+      const ex = e.target.closest('[data-ex]'); if (ex) run(ex.dataset.ex);
+      if (e.target.closest('#kclear')) run('');
+    });
+    if (window.__kq) run(window.__kq);
   };
 
   // ============ 点数・書類チェック ============
@@ -156,7 +177,6 @@
     const s = S();
     const r = Calc.score(s);
     const need = Calc.needAmount(s);
-    const docs = Calc.documents(s);
     const issues = Calc.validate(s);
     const firstWish = s.application.wishes.find(w => w.id);
     const famType = id => { const f = (window.FACILITIES || []).find(f => String(f.id) === String(id)); return f && f.type === '家庭的保育事業' ? 'family' : 'nursery'; };
@@ -165,7 +185,6 @@
       const f = Calc.fee(s, c, famType(firstWish && firstWish.id), order0 + i);
       return `<div class="fee-row"><div><strong>${esc(childLabel(c, i))}</strong><div class="muted" style="font-size:.875rem">${f.cls != null ? (f.cls >= 6 ? '就学' : f.cls + '歳児クラス') : '—'}・第${order0 + i}子${f.tier ? '・' + f.tier + '階層' : ''}</div>${f.msg ? `<div class="muted" style="font-size:.8125rem">${esc(f.msg)}</div>` : ''}</div><div class="fee-amt">${f.ok ? yen(f.amount) : '—'}${f.ok && f.ext != null && f.amount > 0 ? `<small>公立延長 ${yen(f.ext)}</small>` : ''}</div></div>`;
     }).join('');
-    const checked = s.checklist || {};
     el.innerHTML = `
       <p class="muted">「<a href="#profile">マイ申請</a>」の内容から自動で計算します。入力を変えると結果も変わります。</p>
       ${DISCLAIMER}
@@ -191,12 +210,7 @@
       <div class="card"><h3>入力内容のチェック</h3>
         ${issues.length ? `<ul class="issues">${issues.map(i => `<li>${esc(i)}</li>`).join('')}</ul>` : '<p>簡易チェックで問題は見つかりませんでした（すべてを確認できるわけではありません）。</p>'}
       </div>
-      <div class="card"><h3>あなたに必要な書類（目安）</h3>
-        <p class="muted">チェックを入れると準備状況を保存できます。🌟は不足・未記入だと受付できない場合がある書類です。</p>
-        <ul class="doc-list">${docs.map((d, i) => { const key = d.name; return `<li><input type="checkbox" data-doc="${esc(key)}"${checked[key] ? ' checked' : ''}${d.optional ? ' disabled' : ''}><div><div>${d.star ? '🌟 ' : ''}${esc(d.name)} <span class="pill">${esc(d.group)}</span>${d.form ? ' <a class="pill accent" href="#forms">PDF作成可</a>' : ''}</div><div class="why">${esc(d.why)}</div></div></li>`; }).join('')}</ul>
-        <p><small>根拠：${pageLink(13, '必要書類一覧 P13〜16')}。提出前に<a href="docs/r9bessi_checklist.pdf" target="_blank" rel="noopener">申込書類チェックリスト（別紙）</a>も必ず確認してください。様式は<a href="${R.officialUrl}" target="_blank" rel="noopener">藤沢市HP</a>からダウンロードできます。</small></p>
-      </div>`;
-    el.addEventListener('change', e => { const k = e.target.dataset.doc; if (k == null) return; const c = { ...(S().checklist || {}) }; c[k] = e.target.checked; Store.set('checklist', c); });
+      <div class="card"><h3>必要書類</h3><p>あなたに必要な書類は「<a href="#profile" onclick="Store.set('ui.profileMode','docs')">マイ申請 → 📎 必要書類</a>」で確認できます。</p></div>`;
   };
 
   // ============ 保育園検索（全画面地図） ============
@@ -393,7 +407,47 @@
   };
 
   // ============ マイ申請 ============
+
+  // ============ 必要書類（マイ申請のタブ） ============
+  function docsView(el) {
+    const docs = Calc.documents(S());
+    const checked = S().checklist || {};
+    const docSum = () => { const ck = S().checklist || {}; const need = docs.filter(d => d.needed); const done = need.filter(d => ck[d.name]).length; return `<p><strong>あなたに必要：${need.length}件</strong>（準備済み ${done}件） ／ <span class="muted">不要：${docs.length - need.length}件（二重線）</span></p><div class="chat-progress"><div style="width:${need.length ? Math.round(done / need.length * 100) : 0}%"></div></div>`; };
+    const box = document.createElement('div');
+    box.innerHTML = `
+      <div class="card"><h3>必要書類（目安）</h3>
+        <div id="docSum">${docSum()}</div>
+        <p class="muted" style="font-size:.875rem">チェックを入れると準備状況を保存できます。🌟は不足・未記入だと受付できない場合がある書類です。二重線の書類は、いまの入力内容では不要と判定したものです（入力が変われば必要になる場合があります）。</p>
+        <label class="switch-row"><span class="sw-text">不要な書類をかくす</span><input type="checkbox" role="switch" class="switch" id="hideOff"${S().ui && S().ui.hideUnneeded ? ' checked' : ''}></label>
+        ${[...new Set(docs.map(d => d.group))].map(g => `<h4 class="doc-group">${esc(g)}</h4><ul class="doc-list">${docs.filter(d => d.group === g).map(d => d.needed
+          ? `<li><input type="checkbox" data-doc="${esc(d.name)}"${checked[d.name] ? ' checked' : ''} aria-label="${esc(d.name)}"><div><div>${d.star ? '🌟 ' : ''}${esc(d.name)}${d.form ? ' <a class="pill accent" href="#forms">PDF作成可</a>' : ''}</div><div class="why">${esc(d.why)}</div></div></li>`
+          : `<li class="doc-off"${S().ui && S().ui.hideUnneeded ? ' hidden' : ''}><span class="off-mark" aria-hidden="true">不要</span><div><div class="off-name"><span class="visually-hidden">不要：</span>${esc(d.name)}</div><div class="why">${d.info ? '' : '必要になるのは：'}${esc(d.why)}</div></div></li>`).join('')}</ul>`).join('')}
+        <p><small>根拠：${pageLink(13, '必要書類一覧 P13〜16')}。提出前に<a href="docs/r9bessi_checklist.pdf" target="_blank" rel="noopener">申込書類チェックリスト（別紙）</a>も必ず確認してください。様式は<a href="${R.officialUrl}" target="_blank" rel="noopener">藤沢市HP</a>からダウンロードできます。</small></p>
+      </div>`;
+    el.appendChild(box);
+    box.addEventListener('change', e => {
+      if (e.target.id === 'hideOff') { Store.set('ui.hideUnneeded', e.target.checked); $$('.doc-off', box).forEach(li => (li.hidden = e.target.checked)); return; }
+      const k = e.target.dataset.doc; if (k == null) return; const c = { ...(S().checklist || {}) }; c[k] = e.target.checked; Store.set('checklist', c); $('#docSum', box).innerHTML = docSum();
+    });
+  }
+
+  const modeTabs = mode => `<div class="mode-tabs" role="tablist" aria-label="マイ申請の表示">${[['chat', '💬 チャット'], ['form', '📋 フォーム'], ['docs', '📎 必要書類']].map(([k, l]) => `<button role="tab" data-mode="${k}" aria-selected="${mode === k}"${mode === k ? ' class="on"' : ''}>${l}</button>`).join('')}</div>`;
   views.profile = el => {
+    const mode = (S().ui && S().ui.profileMode) || 'chat';
+    el.addEventListener('click', e => {
+      const m = e.target.closest('[data-mode]'); if (!m || m.dataset.mode === mode) return;
+      Store.set('ui.profileMode', m.dataset.mode); route();
+    });
+    if (mode === 'docs') {
+      el.innerHTML = modeTabs('docs');
+      docsView(el);
+      return;
+    }
+    if (mode === 'chat') {
+      el.innerHTML = modeTabs('chat') + '<div id="chatRoot" class="chat"></div>';
+      Chat.mount($('#chatRoot', el));
+      return;
+    }
     let openSet = new Set(window.__openSecs || ['app']);
     const render = () => {
       const y = window.scrollY;
@@ -505,7 +559,7 @@
     const gpHTML = [['pf', '父方 祖父'], ['pm', '父方 祖母'], ['mf', '母方 祖父'], ['mm', '母方 祖母']].map(([k, l]) => `<div class="subcard"><strong>${l}</strong><div class="fields">${field(`grandparents.${k}.name`, '氏名（離別・死別等はその旨）', 'text')}${field(`grandparents.${k}.birth`, '生年月日', 'date')}${field(`grandparents.${k}.addr`, '住所（別居の場合）', 'text')}</div>${field(`grandparents.${k}.cohabit`, '同居', 'check')}</div>`).join('');
     const anyIkukyu = s.father.ikukyu || s.mother.ikukyu;
 
-    return `
+    return modeTabs('form') + `
       <p class="note compact">入力は自動でこの端末にだけ保存されます。<strong>マイナンバーは入力しないでください</strong>。説明は要約で、正確性は保証しません（${pageLink(36, '記入例 P36〜42')}）。</p>
       ${sec('app', '1. 申込内容（開始時期・希望園）', `
         <div class="fields">
@@ -651,7 +705,7 @@
       <div class="row"><button class="btn primary" id="mok">理解して利用する</button></div></div>`;
     document.body.appendChild(back);
     $('#mok', back).onclick = () => { Store.agreeTerms(); back.remove(); };
-    $('a', back).forEach(x => (x.onclick = () => back.remove()));
+    $$('a', back).forEach(x => (x.onclick = () => back.remove()));
   }
 
   // ============ ⋮メニュー ============

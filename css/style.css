@@ -334,3 +334,62 @@ body[data-view="facilities"] footer { display: none; }
 .caps span.me { outline: 2px solid var(--accent); }
 @media (min-width: 700px) { .sheet { left: 16px; right: auto; width: 440px; bottom: calc(81px + env(safe-area-inset-bottom)); border-radius: 16px; } }
 .leaflet-bottom.leaflet-right { margin-bottom: 4px; }
+
+/* 入園案内の検索 */
+.guide-search { margin-bottom: 8px; }
+.ex-chips { gap: 6px; margin-bottom: 12px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.ex-chips .legend-chip { box-shadow: none; }
+.kres .hit pre { max-height: 14em; overflow: auto; }
+
+/* マイ申請：入力モード切替 */
+.mode-tabs { display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--surface-2); border-radius: 24px; padding: 4px; margin-bottom: 12px; }
+.mode-tabs button { border: none; background: none; border-radius: 20px; min-height: 40px; font: inherit; font-size: .875rem; white-space: nowrap; font-weight: 700; color: var(--gray-700); cursor: pointer; }
+.mode-tabs button.on { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+
+/* チャット */
+.chat { display: flex; flex-direction: column; height: calc(100dvh - 56px - 65px - 60px - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+body.chat-mode main { padding-bottom: 0; }
+body.chat-mode footer { display: none; }
+.chat-progress { flex: none; height: 4px; background: var(--gray-100); border-radius: 2px; overflow: hidden; margin-bottom: 12px; }
+.chat-progress > div { height: 100%; background: var(--accent); transition: width .3s; }
+.chat-log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px 0 12px; overscroll-behavior: contain; }
+.msg { display: flex; }
+.msg.bot { justify-content: flex-start; }
+.msg.me { justify-content: flex-end; }
+.msg .bubble { max-width: 85%; padding: 10px 14px; border-radius: 18px; font-size: 1.0625rem; line-height: 1.7; }
+.msg.bot .bubble { background: var(--surface-2); border-top-left-radius: 4px; }
+.msg.bot.current .bubble { background: var(--blue-50); border: 1px solid var(--accent); font-weight: 700; }
+.msg.bot.current .hint { font-weight: 400; }
+.msg.bot.note-msg .bubble { background: var(--yellow-50); font-size: .9375rem; }
+.msg.bot.done .bubble { background: var(--green-50); }
+.msg.me .bubble { background: var(--accent); color: #fff; border: none; border-top-right-radius: 4px; font: inherit; font-size: 1rem; text-align: left; cursor: pointer; }
+.msg.me .bubble:hover { background: var(--accent-hover); text-decoration: underline; }
+.hint { font-size: .875rem; color: var(--gray-700); margin-top: 6px; }
+.chat-dock { flex: none; background: var(--bg); border-top: 1px solid var(--line-soft); padding: 10px 0 6px; max-height: 50%; overflow: auto; }
+.chat-dock .row { margin-top: 8px; }
+.choice-list { display: grid; gap: 8px; }
+.choice-btn { text-align: left; min-height: 52px; padding: 10px 16px; border-radius: 12px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; }
+.choice-btn:hover { background: var(--blue-50); }
+.choice-btn.selected { background: var(--accent-soft); }
+.choice-btn.selected::after { content: " ✓"; }
+.chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-check { display: inline-flex; }
+.chip-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.chip-check span { display: inline-flex; align-items: center; min-height: 44px; padding: 6px 14px; border-radius: 22px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: .9375rem; }
+.chip-check input:checked + span { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
+.chip-check input:checked + span::before { content: "✓ "; }
+.chip-check input:focus-visible + span { outline: 4px solid var(--gray-900); box-shadow: 0 0 0 2px var(--focus-ring); }
+.chat-input { display: flex; gap: 8px; }
+.chat-input input { flex: 1; min-width: 0; }
+.chat-error { color: var(--danger); font-weight: 700; font-size: .9375rem; margin-bottom: 8px; }
+.dock-sub { text-align: center; margin-top: 4px; }
+.link-btn { background: none; border: none; color: var(--accent); text-decoration: underline; font: inherit; font-size: .9375rem; cursor: pointer; padding: 8px; min-height: 44px; }
+
+/* 必要書類：不要は二重線で見え消し */
+.doc-group { font-size: .9375rem; color: var(--muted); margin: 16px 0 0; }
+.doc-list li.doc-off { align-items: flex-start; }
+.doc-list li[hidden] { display: none; }
+.doc-off .off-name { text-decoration: line-through; text-decoration-style: double; text-decoration-color: var(--gray-700); color: var(--gray-536); }
+.doc-off .why { color: var(--gray-536); }
+.off-mark { flex: none; width: 24px; font-size: .625rem; font-weight: 700; color: var(--gray-536); border: 1px solid var(--gray-300); border-radius: 4px; text-align: center; line-height: 1.6; margin-top: 3px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

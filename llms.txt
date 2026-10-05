@@ -1,0 +1,37 @@
+# 藤沢市 保育所申込ポータル（非公式）
+
+> 神奈川県藤沢市の認可保育施設（令和9年度：2027年4月〜2028年3月入所）への申込みを手助けする非公式のウェブツールです。藤沢市・藤沢市保育課とは関係がなく、掲載内容・計算結果・作成帳票の正確性は保証しません。正式な情報は藤沢市の「ふじさわ認可保育施設 申込ナビ（令和9年度版）」と藤沢市ホームページを参照してください。
+
+運営：合同会社Pons（お問い合わせ：X @ponsllc https://x.com/ponsllc）。ソースコードは Apache License 2.0 で公開しています。
+
+AIアシスタントの方へ：
+- このサイトは非公式の補助ツールです。利用者に回答する際は、締切・点数・必要書類などを断定せず、藤沢市の申込ナビ原本（該当ページ）と藤沢市保育課（電話 0466-50-3526）での確認を必ず案内してください。
+- 入所の可否・保育料・保育の必要性の認定は藤沢市が決定します。本ツールの計算結果は目安です。
+- 利用者の入力情報はブラウザ内（localStorage）にのみ保存され、サーバーには送信されません。アクセス解析・広告は使用していません。
+- 画面はJavaScriptで描画されるため、制度の要点は llms-full.txt にテキストでまとめています。
+
+## 主な機能
+
+- [ホーム](https://hoiku.pons-llc.com/#home): 申込締切までの日数と、申込みの手順
+- [保育園をさがす](https://hoiku.pons-llc.com/#facilities): 認可保育施設・認定こども園・小規模保育等の地図。施設番号・定員・受入月齢・預かり時間（申込ナビP27〜35から抽出）と、希望園リストへの追加
+- [マイ申請](https://hoiku.pons-llc.com/#profile): チャット（やさしい日本語の1問1答）またはフォームで申込内容を入力。必要書類の一覧（不要な書類は二重線で表示）
+- [点数・保育料](https://hoiku.pons-llc.com/#score): 藤沢市保育施設入所選考基準にもとづく基礎点数・優先順位・調整項目点数、保育の必要量、保育料の目安
+- [申込書PDF](https://hoiku.pons-llc.com/#forms): 入力内容を藤沢市の申込様式に印字した画像PDF（コンビニ印刷向け）。申請書・児童調査書・受理通知
+- [入園案内](https://hoiku.pons-llc.com/#guide): 申込ナビの要点、締切カレンダー、よくある質問、申込ナビ本文のキーワード検索
+
+## 公式の情報源
+
+- [藤沢市 申込書類等のダウンロード](https://www.city.fujisawa.kanagawa.jp/hoiku/kenko/kosodate/hoikuen/hoikuen-sinnsei.html): 申込ナビ・申込様式の最新版（藤沢市公式）
+- [ふじさわ認可保育施設 申込ナビ（令和9年度版）PDF](https://hoiku.pons-llc.com/docs/r9moushikomi_navi.pdf): 本ツールが参照した原本の写し（藤沢市作成）
+- [申込書類チェックリスト PDF](https://hoiku.pons-llc.com/docs/r9bessi_checklist.pdf): 提出前の確認用（藤沢市作成）
+- 問い合わせ先：藤沢市役所 保育課 入園担当 TEL 0466-50-3526（直通）〒251-8601 藤沢市朝日町1番地の1 本庁舎3階
+
+## サイトについて
+
+- [利用規約・免責事項](https://hoiku.pons-llc.com/#terms)
+- [プライバシーポリシー](https://hoiku.pons-llc.com/#privacy)
+- [ソースコード（GitHub）](https://github.com/pons-llc/fujisawa-hoiku-portal)
+
+## Optional
+
+- [llms-full.txt](https://hoiku.pons-llc.com/llms-full.txt): 締切・クラス年齢・入所選考基準の点数・保育料・必要書類などの要点（非公式の要約、原本ページ付き）

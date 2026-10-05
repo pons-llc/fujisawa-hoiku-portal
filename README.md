@@ -50,6 +50,11 @@ node --test tests/*.test.js   # 点数計算・保育料・必要量・締切（
 
 ただし、藤沢市の資料（`docs/`・`forms-src/` の PDF、`data/forms-bg.js` の様式画像）、そこから転記・抽出したデータ、藤沢市オープンデータ（`facilities/`）、実行時に読み込む外部ライブラリは Apache-2.0 の対象外です。詳細は [NOTICE](NOTICE) を参照してください。
 
+## AI向けテキスト
+
+- `llms.txt`：サイト概要・非公式である旨・主要ページと公式情報源（[llmstxt.org](https://llmstxt.org/) の形式）
+- `llms-full.txt`：締切・選考基準・保育料・必要書類の要点（申込ナビのページ番号付き）。年度更新時は `data/rules.js` とあわせて更新してください。
+
 ## デプロイ（Cloudflare Pages）
 
 GitHub リポジトリ（pons-llc/fujisawa-hoiku-portal）と Cloudflare Pages を連携しており、`main` への push で自動デプロイされます。

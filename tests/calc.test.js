@@ -258,3 +258,31 @@ test('締切：前々月末・土日は翌開庁日・特例', () => {
   assert.equal(Calc.deadlineFor('2027-04', '1').date, '2026-10-23');
   assert.equal(Calc.deadlineFor('2027-04', '2').date, '2027-02-08');
 });
+
+// ============ 必要書類（全書類を返し、不要は needed=false） ============
+const docs = mod => Calc.documents(base(mod));
+const need = (list, re) => list.filter(d => re.test(d.name)).map(d => d.needed);
+test('必要書類：共働き会社員の基本形', () => {
+  const l = docs({});
+  assert.ok(l.length >= 30, '全書類を返す');
+  assert.deepEqual(need(l, /^①|^②|^④|^⑤|^⑥/), [true, true, true, true, true]);
+  assert.deepEqual(need(l, /就労証明書（市の所定用紙/), [true]);
+  assert.match(l.find(d => /就労証明書（市の所定用紙/.test(d.name)).name, /^父・母：/);
+  for (const re of [/介護（看護）状況申告書/, /要介護度が分かる/, /被介護者の診断書/, /^⑮/, /^⑩/, /^⑪/, /^⑬/, /医師の診断書/, /学生証/, /就労状況説明書/]) assert.deepEqual(need(l, re), [false], String(re));
+  assert.ok(l.filter(d => !d.needed).every(d => d.why), '不要な書類にも「必要になる条件」がある');
+});
+test('必要書類：条件に応じて必要になる', () => {
+  assert.deepEqual(need(docs({ father: { reason: 'care', hours: '100' } }), /介護（看護）状況申告書/), [true]);
+  assert.deepEqual(need(docs({ household: { familyCareC7: true } }), /要介護度が分かる/), [true]);
+  assert.deepEqual(need(docs({ household: { welfare: true } }), /^⑮/), [true]);
+  assert.deepEqual(need(docs({ household: { singleParent: true }, father: { present: false } }), /^⑩/), [true]);
+  assert.deepEqual(need(docs({ household: { residence: 'moving', contractDocs: true } }), /^⑪|^⑫/), [true, true]);
+  assert.deepEqual(need(docs({ household: { residence: 'moving', contractDocs: false } }), /^⑪|^⑫/), [true, false]);
+  assert.deepEqual(need(docs({ mother: { nurseryJob: 'assistant' } }), /^⑬|^⑭/), [true, false]);
+  assert.deepEqual(need(docs({ mother: { selfEmployed: true } }), /就労状況説明書|確定申告書/), [true, true]);
+  assert.deepEqual(need(docs({ children: [child('2025-06-01', { paidCare: '3days' })] }), /^⑧/), [true]);
+  assert.deepEqual(need(docs({ household: { reg2026: 'outside' } }), /^⑨-1|^⑨-2/), [true, false]);
+  assert.deepEqual(need(docs({ household: { reg2027: 'outside' }, application: { startMonth: '2027-10' } }), /^⑨-1|^⑨-2/), [false, true]);
+  assert.deepEqual(need(docs({ application: { method: 'window', startMonth: '2027-06' } }), /^⑦/), [false]);
+  assert.deepEqual(need(docs({ application: { method: 'window' } }), /^⑦/), [true], '4月1次は窓口でも必要');
+});

@@ -81,6 +81,8 @@
     favorites: [],
     checklist: {},
     formOffset: { x: 0, y: 0 },
+    chat: { answers: {} }, // チャット入力の進行状況（質問ID → 答え）
+    ui: { profileMode: "chat" },
   });
 
   function deepMerge(base, src) {

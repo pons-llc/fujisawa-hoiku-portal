@@ -175,64 +175,76 @@
   }
 
   // ---------- 必要書類 ----------
+  // 申込ナビP13〜16の書類をすべて返す。needed=false の書類は「不要」として見え消し表示する。
   function documents(s) {
     const h = s.household, app = s.application;
     const ps = parentsOf(s);
     const docs = [];
-    const d = (group, name, why, opts = {}) => docs.push({ group, name, why, ...opts });
+    const d = (group, name, needed, why, opts = {}) => docs.push({ group, name, needed: !!needed, why, ...opts });
+    const who = list => list.map(x => x.who).join('・');
+    const by = cond => ps.filter(x => cond(x.p));
     const nChildren = s.children.length;
-    d('全員', '① 教育・保育給付認定申請書 兼 保育施設利用申込書', 'きょうだいで申込む場合も1枚にまとめる', { star: true, form: 'mousikomi' });
-    d('全員', `② 保育施設利用申込みの児童調査書（${nChildren}枚）`, '申込児童の人数分', { star: true, form: 'chosa' });
-    ps.forEach(({ who, p }) => {
-      const R3 = '③ 保育の必要性事由を証明する書類';
-      switch (p.reason) {
-        case 'work': case 'offer':
-          if (p.selfEmployed) {
-            d(R3, `${who}：就労証明書（事業主の方が発行）`, '自営業・個人事業主・専従者・業務委託など');
-            d(R3, `${who}：就労状況説明書`, '会社勤め以外の方');
-            d(R3, `${who}：${isAprilApp(app) ? '令和7年' : '令和8年'}確定申告書（第一表）又は源泉徴収票の写し`, '4月1次・2次は令和7年分。業務委託は業務委託契約書で代替、開業直後等は代替書類（P15）');
-          } else {
-            d(R3, `${who}：就労証明書（市の所定用紙・令和9年度様式）`, p.ikukyu ? '育児休業中の方も必要（取得中・期間の記載を確認）' : '会社勤め（役員・代表含む）');
-            if (p.executiveSelfCert) d(R3, `${who}：商業登記簿謄本`, '証明者が保護者自身になる会社役員・代表');
-            if (p.spouseCompany) d(R3, `${who}：事業に携わっていることが分かる書類（源泉徴収票・給与明細等）`, '配偶者経営の会社で証明者が配偶者');
-          }
-          break;
-        case 'seeking': d(R3, `${who}：（申込時は不要）`, '求職中は入所後2か月以内に就労証明書を提出', { optional: true }); break;
-        case 'birth': d(R3, `${who}：母子健康手帳のコピー（表紙と分娩予定日のページ）`, '出産'); break;
-        case 'illness': d(R3, `${who}：医師の診断書（市の所定用紙）`, '疾病・負傷'); break;
-        case 'disability': d(R3, `${who}：障がい者手帳又は療育手帳のコピー`, '障がい'); break;
-        case 'care': d(R3, `${who}：被介護者の診断書等`, '介護・看護'); d(R3, `${who}：介護(看護)状況申告書（市の所定用紙）`, '介護・看護'); break;
-        case 'study': d(R3, `${who}：学生証（在籍証明書）のコピー`, '就学'); d(R3, `${who}：カリキュラム表など（日中保育できない時間・日数が分かるもの）`, '就学'); break;
-        default: d(R3, `${who}：事由を証明する書類`, '保育課にご確認ください');
-      }
-    });
-    d('全員', '④ 代表者の本人確認書類（郵送は両面コピー）', '「本人確認書類・マイナンバー確認書類貼付台紙」に貼付', { star: true });
-    d('全員', '⑤ 同居の家族全員のマイナンバー確認書類', 'マイナンバーカード両面コピー又はマイナンバー記載の住民票');
-    d('全員', '⑥ 誓約書・保育施設利用申込受理通知', '受理通知のコピーが申込控えになります', { star: true, form: 'jyuri' });
-    const needEnvelope = !(app.method === 'window' && !isApril1(app));
-    if (needEnvelope) d('全員', '⑦ 切手を貼った返信用封筒（長3形）', '50g以内の書類を返送予定。切手不足に注意');
+    const A = '全員', R3 = '③ 保育の必要性を証明する書類', B = '該当者のみ', C = '加点の確認書類';
 
-    // B: 該当者のみ
-    const B = '該当者のみ';
-    if (s.children.some(c => ['unlicensed', 'temporary'].includes(c.status) || c.paidCare !== 'none')) d(B, '⑧ 保育証明書', '児童本人又はきょうだいを認可保育施設以外に預けている／一時預かりを週1回以上定期利用（証明日は保育開始日より後）');
+    // A：全員に必要
+    d(A, '① 教育・保育給付認定申請書 兼 保育施設利用申込書', true, 'きょうだいで申込む場合も1枚にまとめる', { star: true, form: 'mousikomi' });
+    d(A, `② 保育施設利用申込みの児童調査書（${nChildren}枚）`, true, '申込児童の人数分', { star: true, form: 'chosa' });
+    d(A, '④ 代表者の本人確認書類（郵送は両面コピー）', true, '「本人確認書類・マイナンバー確認書類貼付台紙」に貼付', { star: true });
+    d(A, '⑤ 同居の家族全員のマイナンバー確認書類', true, 'マイナンバーカード両面コピー又はマイナンバー記載の住民票');
+    d(A, '⑥ 誓約書・保育施設利用申込受理通知', true, '受理通知のコピーが申込控えになります', { star: true, form: 'jyuri' });
+    const window_ = app.method === 'window' && !isApril1(app);
+    d(A, '⑦ 切手を貼った返信用封筒（長3形）', !window_, window_ ? '4月1次以外で窓口に提出する場合は不要' : '50g以内の書類を返送予定。切手不足に注意');
+
+    // ③ 保育の必要性事由（父母それぞれ）
+    const employee = by(p => ['work', 'offer'].includes(p.reason) && !p.selfEmployed);
+    const self = by(p => ['work', 'offer'].includes(p.reason) && p.selfEmployed);
+    const seeking = by(p => p.reason === 'seeking');
+    const worker = employee.concat(self);
+    const line = (list, doc, cond, why, opts) => d(R3, list.length ? `${who(list)}：${doc}` : doc, list.length, list.length ? why : cond, opts);
+    line(worker, '就労証明書（市の所定用紙・令和9年度様式）', '就労・就労内定の場合', worker.some(x => x.p.ikukyu) ? '育児休業中の方も必要（取得中・期間の記載を確認）' : self.length ? '自営業等は事業主の方が発行' : '勤務先で証明を受ける');
+    line(self, '就労状況説明書', '自営業・個人事業主・専従者・業務委託など、会社勤め以外の場合', '会社勤め以外の方');
+    line(self, `${isAprilApp(app) ? '令和7年' : '令和8年'}確定申告書（第一表）又は源泉徴収票の写し`, '自営業・個人事業主などの場合', '4月1次・2次は令和7年分。業務委託は契約書で代替、開業直後等は代替書類（P15）');
+    line(by(p => p.executiveSelfCert), '商業登記簿謄本', '会社役員・代表で、就労証明書の証明者が保護者自身の場合', '証明者が保護者自身');
+    line(by(p => p.spouseCompany), '事業に携わっていることが分かる書類（源泉徴収票・給与明細等）', '配偶者が経営する会社で働き、証明者が配偶者の場合', '証明者が配偶者');
+    line(by(p => p.reason === 'birth'), '母子健康手帳のコピー（表紙と分娩予定日のページ）', '出産が理由の場合', '出産');
+    line(by(p => p.reason === 'illness'), '医師の診断書（市の所定用紙）', '保護者の疾病・負傷が理由の場合', '疾病・負傷');
+    line(by(p => p.reason === 'disability'), '障がい者手帳又は療育手帳のコピー', '保護者の障がいが理由の場合', '保護者の障がい');
+    line(by(p => p.reason === 'care'), '被介護者の診断書・介護保険証など（介護・看護の必要性が分かるもの）', '親族の介護・看護が理由の場合', '介護・看護');
+    line(by(p => p.reason === 'care'), '介護（看護）状況申告書（市の所定用紙）', '親族の介護・看護が理由の場合', '介護・看護');
+    line(by(p => p.reason === 'study'), '学生証（在籍証明書）のコピー', '就学が理由の場合', '就学');
+    line(by(p => p.reason === 'study'), 'カリキュラム表など（日中保育できない時間・日数が分かるもの）', '就学が理由の場合', '就学');
+    if (seeking.length) d(R3, `${who(seeking)}：求職中のため申込時は不要`, false, '入所後2か月以内に就労証明書を提出', { info: true });
+
+    // B：該当者のみ
+    const careOutside = s.children.some(c => ['unlicensed', 'temporary'].includes(c.status) || c.paidCare !== 'none');
+    d(B, '⑧ 保育証明書', careOutside, careOutside ? '預け先で証明を受ける（証明日は保育開始日より後）' : '児童本人やきょうだいを認可外・幼稚園・一時預かり等に預けている場合');
     const [sy, sm] = (app.startMonth || '2027-04').split('-').map(Number);
-    const firstHalf = (sy === 2027 && sm >= 4 && sm <= 8);
-    if (firstHalf && (h.reg2026 !== 'fujisawa' || !h.taxFiled)) d(B, '⑨-1 令和8年度 住民税課税証明書（父母）', '2026年1月1日時点で市外在住 又は 所得申告未済（2027年4〜8月入所希望）');
-    if (!firstHalf && (h.reg2027 !== 'fujisawa' || !h.taxFiled)) d(B, '⑨-2 令和9年度 住民税課税証明書（父母）', '2027年1月1日時点で市外在住 又は 所得申告未済（2027年9月〜2028年3月入所希望）');
-    if (h.singleParent) d(B, '⑩ ひとり親世帯の書類（いずれか1点）', '戸籍謄本（発行1か月以内・離婚日等の記載）／受理証明書／児童扶養手当証書／ひとり親福祉医療証');
-    if (h.residence === 'moving') { d(B, '⑪ 転入・転居に関する申立書', '転入予定日は入所希望月の前月末より前'); if (h.contractDocs !== false) d(B, '⑫ 転入・転居先の詳細を確認できる書類（売買・賃貸契約書等のコピー）', '藤沢市民との同居による転入の場合は不要。未提出だとA-2⑦で-10点'); }
-    if (ps.some(x => x.p.nurseryJob !== 'none') && !app.transfer) {
-      d(B, '⑬ 保育園(幼稚園)等の就労に関する誓約書兼証明書', '市内の認可保育施設・藤沢型認定保育施設・幼稚園で保育士等として復職/就労開始');
-      if (ps.some(x => x.p.nurseryJob === 'teacher')) d(B, '⑭ 保育士証（幼稚園教諭の普通免許状）の写し', '保育補助者の場合は不要');
-    }
-    if (h.welfare) d(B, '⑮ 生活保護受給中であることが分かる書類（福祉事務所発行）', '生活保護受給中');
-    if (app.preBirth || s.children.some(c => c.unborn)) d(B, '⑯ 母子手帳のコピー（表紙・分娩予定日のページ）', '出生前申込み（4月入所のみ可）。出生後に児童調査書・マイナンバー確認書類を窓口で手続き');
-    if (s.children.some(c => c.special)) d(B, '児童状況票', '集団生活の中で特別な対応を希望する場合（児童調査書3(1)）');
-    if (h.familyDisability || h.familyCareC7) d(B, '障がい者手帳・療育手帳等のコピー', '家族に手帳の交付を受けている方がいる場合（申込書表面下部に氏名記入）');
-    if (h.absentParent === 'hospital') d(B, '入院期間が記載された診断書', 'C調整項目⑧（長期入院）');
-    if (h.absentParent === 'transfer') d(B, '単身赴任の記載のある就労証明書', 'C調整項目⑧（単身赴任）');
-    if (['welfare', 'nontax'].includes(h.taxStatus) && h.residence !== 'fujisawa') d(B, '非課税証明書', 'C調整項目⑤（直近で藤沢市へ転入した場合）');
-    if (h.motherPregnant) d(B, '母子手帳のコピー', '母に出産予定あり（申込書 確認事項⑦）');
+    const firstHalf = sy === 2027 && sm >= 4 && sm <= 8;
+    const n91 = firstHalf && (h.reg2026 !== 'fujisawa' || !h.taxFiled);
+    const n92 = !firstHalf && (h.reg2027 !== 'fujisawa' || !h.taxFiled);
+    d(B, '⑨-1 令和8年度 住民税課税証明書（父母）', n91, n91 ? '2026年1月1日時点で市外在住 又は 所得申告未済' : '2027年4〜8月入所で、2026年1月1日に市外在住 又は 所得申告がまだの場合');
+    d(B, '⑨-2 令和9年度 住民税課税証明書（父母）', n92, n92 ? '2027年1月1日時点で市外在住 又は 所得申告未済' : '2027年9月〜2028年3月入所で、2027年1月1日に市外在住 又は 所得申告がまだの場合');
+    d(B, '⑩ ひとり親世帯の書類（いずれか1点）', h.singleParent, h.singleParent ? '戸籍謄本（発行1か月以内・離婚日等の記載）／受理証明書／児童扶養手当証書／ひとり親福祉医療証' : 'ひとり親世帯の場合');
+    const moving = h.residence === 'moving';
+    d(B, '⑪ 転入・転居に関する申立書', moving, moving ? '転入予定日は入所希望月の前月末より前' : '藤沢市へ転入予定、又は市内転居を理由に転園申請する場合');
+    d(B, '⑫ 転入・転居先の詳細を確認できる書類（売買・賃貸契約書等のコピー）', moving && h.contractDocs !== false, moving ? (h.contractDocs !== false ? '藤沢市民との同居による転入の場合は不要' : '提出しない場合は基礎点数-10点') : '藤沢市へ転入予定の場合');
+    const nj = !app.transfer && ps.some(x => x.p.nurseryJob !== 'none');
+    d(B, '⑬ 保育園(幼稚園)等の就労に関する誓約書兼証明書', nj, nj ? '市内の認可保育施設等で保育士等として復職/就労開始' : '市内の保育施設・幼稚園で保育士・幼稚園教諭・保育補助者として復職/就労開始する場合');
+    const nt = !app.transfer && ps.some(x => x.p.nurseryJob === 'teacher');
+    d(B, '⑭ 保育士証（幼稚園教諭の普通免許状）の写し', nt, nt ? '保育補助者の場合は不要' : '保育士・幼稚園教諭として復職/就労開始する場合');
+    d(B, '⑮ 生活保護受給中であることが分かる書類（福祉事務所発行）', h.welfare, '生活保護を受給中の場合');
+    const preBirth = app.preBirth || s.children.some(c => c.unborn);
+    d(B, '⑯ 母子手帳のコピー（出生前申込み）', preBirth, preBirth ? '出生後に児童調査書・マイナンバー確認書類を窓口で手続き' : 'まだ生まれていない子を申込む場合（4月入所のみ）');
+    d(B, '母子手帳のコピー（母の出産予定）', h.motherPregnant, '児童の母に出産予定がある場合（申込書 確認事項⑦）');
+    d(B, '児童状況票', s.children.some(c => c.special || (c.survey && c.survey.specialCare)), '集団生活の中で特別な対応を希望する場合（児童調査書3(1)）');
+    d(B, '障がい者手帳・療育手帳のコピー（家族）', h.familyDisability, '家族に手帳の交付を受けている方がいる場合（申込書表面下部に氏名記入）');
+
+    // 加点の確認書類（C調整項目）
+    d(C, '障がい者手帳・療育手帳・介護保険証など（要介護度が分かる書類）のコピー', h.familyCareC7, '同居家族に身体障がい者手帳3級以上・療育手帳・精神障がい者手帳、又は要介護3〜5の方がいる場合（調整項目⑦）');
+    d(C, '入院期間が記載された診断書', h.absentParent === 'hospital', '父母のどちらかが長期入院している場合（調整項目⑧）');
+    d(C, '単身赴任の記載のある就労証明書', h.absentParent === 'transfer', '父母のどちらかが単身赴任している場合（調整項目⑧）');
+    const nontaxNew = ['welfare', 'nontax'].includes(h.taxStatus) && h.residence !== 'fujisawa';
+    d(C, '非課税証明書', nontaxNew, '父母とも住民税非課税で、直近で藤沢市へ転入した場合（調整項目⑤）');
     return docs;
   }
   const isApril1 = app => app.startMonth === '2027-04' && app.aprilRound === '1';
