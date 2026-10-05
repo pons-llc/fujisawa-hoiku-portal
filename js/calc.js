@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 合同会社Pons
 // 点数計算・保育料試算・必要書類判定（申込ナビ P1〜P18 の記載に基づく簡易ロジック）
 // 実際の審査・算定は藤沢市保育課が行います。結果は目安です。
 (function () {

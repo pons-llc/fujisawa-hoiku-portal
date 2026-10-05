@@ -1,0 +1,33 @@
+藤沢市 保育所申込ポータル（非公式）
+Copyright 2026 合同会社Pons (Pons LLC)
+https://github.com/pons-llc/fujisawa-hoiku-portal
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+本ソフトウェアのソースコードは Apache License 2.0 で提供されます。
+
+本ツールは藤沢市・藤沢市保育課とは関係のない非公式ツールです。
+掲載内容・計算結果・作成帳票の正確性は保証されません。
+
+----------------------------------------------------------------------
+Apache License 2.0 の対象外のもの（第三者の著作物・データ）
+----------------------------------------------------------------------
+以下は合同会社Ponsの著作物ではなく、Apache License 2.0 は適用されません。
+各権利者の利用条件に従ってください。
+
+1. 藤沢市が作成・公開している資料
+   - docs/r9moushikomi_navi.pdf  ふじさわ認可保育施設 申込ナビ（令和9年度版）
+   - docs/r9bessi_checklist.pdf  申込書類チェックリスト
+   - forms-src/*.pdf             申込書類の様式（藤沢市HP掲載、2026年10月5日取得）
+   - data/forms-bg.js            上記様式を画像化したもの
+   - data/rules.js, data/faq.js, data/facilities.js,
+     tools/navi-facility-*         上記資料から転記・抽出した情報
+   出典：藤沢市 https://www.city.fujisawa.kanagawa.jp/
+
+2. 藤沢市オープンデータ（保育施設の位置情報）
+   - facilities/*.geojson 及びそれを加工した data/facilities.js
+
+3. 実行時に読み込む外部ライブラリ・サービス（リポジトリには同梱していません）
+   - jsPDF (MIT License)        https://github.com/parallax/jsPDF
+   - Leaflet (BSD-2-Clause)     https://leafletjs.com/
+   - OpenStreetMap 地図タイル    © OpenStreetMap contributors (ODbL)
+   - Noto Sans JP (SIL Open Font License 1.1) via Google Fonts

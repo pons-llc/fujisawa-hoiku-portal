@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 合同会社Pons
 // 帳票作成：市の公式様式（画像）に入力内容の文字を描画し、画像化したPDFとして出力する。
 // 座標は様式PDFのポイント単位（左上原点、y は文字のベースライン）。
 (function () {

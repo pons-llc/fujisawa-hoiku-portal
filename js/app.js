@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 合同会社Pons
 // 画面描画・ルーティング
 (function () {
   const $ = (sel, el = document) => el.querySelector(sel);
@@ -11,6 +13,8 @@
   const S = () => Store.state;
   const DISCLAIMER = '<p class="note">※本ツールの結果は申込ナビの記載をもとにした<strong>非公式の目安</strong>です。正確性は保証しません。実際の審査・認定・保育料は藤沢市保育課が決定します。</p>';
   const R = window.RULES;
+  const OPERATOR = '合同会社Pons';
+  const CONTACT_HTML = '<a href="https://x.com/ponsllc" target="_blank" rel="noopener">X（旧Twitter）@ponsllc</a>';
   const childLabel = (c, i) => c.name || `児童${i + 1}`;
 
   function toast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
@@ -63,8 +67,8 @@
   // ============ ルーター ============
   const views = {};
   let cleanup = null;
-  const TITLES = { home: '保育所申込（藤沢市）', facilities: '保育園をさがす', profile: 'マイ申請', score: '点数・必要書類', forms: '申込書PDF', guide: '入園案内', terms: '利用規約' };
-  const SUB_PAGES = ['guide', 'terms'];
+  const TITLES = { home: '保育所申込（藤沢市）', facilities: '保育園をさがす', profile: 'マイ申請', score: '点数・必要書類', forms: '申込書PDF', guide: '入園案内', terms: '利用規約', privacy: 'プライバシーポリシー' };
+  const SUB_PAGES = ['guide', 'terms', 'privacy'];
   function route() {
     let name = (location.hash || '#home').slice(1).split('?')[0];
     if (!views[name]) name = 'home';
@@ -571,7 +575,7 @@
     el.innerHTML = `
       <div class="card">
         <h3>1. 本サイトについて</h3>
-        <p>本サイト「藤沢市 保育所申込ポータル」は、藤沢市が公開している「ふじさわ認可保育施設 申込ナビ（令和9年度版）」等の情報をもとに、個人が作成した<strong>非公式</strong>のツールです。藤沢市・藤沢市保育課その他の行政機関とは一切関係がありません。</p>
+        <p>本サイト「藤沢市 保育所申込ポータル」は、藤沢市が公開している「ふじさわ認可保育施設 申込ナビ（令和9年度版）」等の情報をもとに、${OPERATOR}（以下「運営者」）が運営する<strong>非公式</strong>のツールです。藤沢市・藤沢市保育課その他の行政機関とは一切関係がありません。本サイトに関するお問い合わせは ${CONTACT_HTML} までご連絡ください（保育所の申込み内容に関するご質問には回答できません。藤沢市保育課へお問い合わせください）。</p>
         <h3>2. 正確性を保証しません</h3>
         <ul>
           <li>掲載している情報、点数・保育料の計算結果、必要書類の判定、保育施設の情報、作成した帳票（PDF）について、<strong>正確性・完全性・最新性・有用性を一切保証しません</strong>。</li>
@@ -580,14 +584,9 @@
           <li>実際の保育の必要性の認定、利用調整（入所選考）、保育料の決定は藤沢市が行います。</li>
         </ul>
         <h3>3. 自己責任でのご利用</h3>
-        <p>申込みにあたっては、必ず公式の申込ナビ原本・藤沢市ホームページ・保育課（${esc(R.contact)}）の案内に従ってください。本サイトの利用により生じた申込みの不備、締切の徒過、入所の可否、その他いかなる損害についても、作成者は責任を負いません。</p>
+        <p>申込みにあたっては、必ず公式の申込ナビ原本・藤沢市ホームページ・保育課（${esc(R.contact)}）の案内に従ってください。本サイトの利用により生じた申込みの不備、締切の徒過、入所の可否、その他いかなる損害についても、運営者は責任を負いません。</p>
         <h3>4. 個人情報の取り扱い</h3>
-        <ul>
-          <li>入力した情報はお使いのブラウザの localStorage にのみ保存され、作成者のサーバー等へ送信されることはありません。</li>
-          <li>地図表示（OpenStreetMap）、PDF作成ライブラリ（jsPDF）、地図ライブラリ（Leaflet）、フォント（Google Fonts）はインターネット上のCDN等から読み込みます。読み込みの際に通常のアクセス情報（IPアドレス等）が各配信元に送信されますが、入力内容は送信しません。</li>
-          <li>共用の端末では、利用後に「マイ申請」→「この端末のデータをすべて削除」を実行してください。</li>
-          <li>マイナンバーは本サイトに入力しないでください。</li>
-        </ul>
+        <p>個人情報・利用者情報の取り扱いは<a href="#privacy">プライバシーポリシー</a>に定めます。マイナンバーは本サイトに入力しないでください。</p>
         <h3>5. 出典</h3>
         <ul>
           <li>藤沢市「ふじさわ認可保育施設 申込ナビ（令和9年度版）」「申込書類チェックリスト」</li>
@@ -596,10 +595,49 @@
           <li>地図：&copy; OpenStreetMap contributors</li>
         </ul>
         <h3>6. 変更・停止</h3>
-        <p>本サイトの内容は予告なく変更・停止することがあります。</p>
+        <p>本サイトの内容および本規約は、予告なく変更・停止することがあります。</p>
+        <h3>7. ライセンス</h3>
+        <p>本サイトのソースコードは <a href="https://github.com/pons-llc/fujisawa-hoiku-portal" target="_blank" rel="noopener">GitHub</a> で Apache License 2.0 のもと公開しています。ただし、申込ナビ・申込書様式等の藤沢市の資料及びそこから転記・抽出したデータ、オープンデータ、外部ライブラリは対象外で、各権利者の条件に従います（リポジトリの NOTICE 参照）。</p>
+        <h3>8. 運営者</h3>
+        <p>${OPERATOR}<br>連絡先：${CONTACT_HTML}</p>
+        <p class="muted">2026年10月5日 制定</p>
         <div class="row"><button class="btn primary" id="agree">${Store.termsAgreed() ? '同意済みです' : '上記に同意する'}</button></div>
       </div>`;
     $('#agree', el).onclick = () => { Store.agreeTerms(); toast('同意しました'); location.hash = '#home'; };
+  };
+
+  // ============ プライバシーポリシー ============
+  views.privacy = el => {
+    el.innerHTML = `
+      <div class="card">
+        <p>${OPERATOR}（以下「運営者」）は、「藤沢市 保育所申込ポータル（非公式）」（以下「本サイト」）における利用者の情報の取り扱いについて、以下のとおり定めます。</p>
+        <h3>1. 運営者が取得する情報</h3>
+        <p><strong>運営者は、本サイトを通じて利用者の個人情報を取得・収集しません。</strong>本サイトには入力内容を受け取るサーバーがなく、入力された情報が運営者に送信されることはありません。</p>
+        <h3>2. 入力した情報の保存場所</h3>
+        <ul>
+          <li>「マイ申請」等で入力した情報（氏名・生年月日・住所・勤務先・お子様の健康状態など）は、お使いの端末のブラウザ内（localStorage）にのみ保存されます。</li>
+          <li>保存した情報は、「マイ申請」→「この端末のデータをすべて削除」、又はブラウザのサイトデータ削除によっていつでも消去できます。共用端末では利用後に必ず削除してください。</li>
+          <li>「ファイルに書き出す」で作成したファイルや、作成した申込書PDFには個人情報が含まれます。保管・送付は利用者ご自身の責任で行ってください。</li>
+          <li>マイナンバーは本サイトに入力しないでください（入力欄も設けていません）。</li>
+        </ul>
+        <h3>3. アクセス解析・広告</h3>
+        <p>本サイトは、Google Analytics 等のアクセス解析ツール、Google AdSense 等の広告配信サービスを<strong>一切使用していません</strong>。運営者がCookieを設定することもありません。</p>
+        <h3>4. 外部サービスの利用</h3>
+        <p>本サイトは表示や機能のために次の外部サービスから資源を読み込みます。読み込みの際、通常の通信に伴う情報（IPアドレス、ブラウザの種類、閲覧したページのURL等）が各提供元に送信されます。入力内容が送信されることはありません。各提供元における情報の取り扱いは、それぞれのプライバシーポリシーをご確認ください。</p>
+        <ul>
+          <li>cdnjs（Cloudflare）：PDF作成ライブラリ jsPDF、地図ライブラリ Leaflet の配信</li>
+          <li>OpenStreetMap：地図画像（タイル）の配信</li>
+          <li>Google Fonts：フォント（Noto Sans JP）の配信</li>
+        </ul>
+        <p>また、施設HP・Googleマップ・藤沢市HP等の外部サイトへのリンクを開いた場合は、リンク先の取り扱いに従います。</p>
+        <h3>5. 第三者提供</h3>
+        <p>運営者は利用者の個人情報を取得しないため、第三者に提供することもありません。</p>
+        <h3>6. お問い合わせ</h3>
+        <p>本ポリシーに関するお問い合わせは ${CONTACT_HTML} までご連絡ください。</p>
+        <h3>7. 改定</h3>
+        <p>本ポリシーは必要に応じて改定することがあります。改定後の内容は本ページに掲載した時点から効力を生じます。</p>
+        <p class="muted">2026年10月5日 制定<br>${OPERATOR}</p>
+      </div>`;
   };
 
   // ============ 初回の同意モーダル ============
@@ -609,11 +647,11 @@
     back.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><h2 id="mt">ご利用の前に</h2>
       <p>このサイトは藤沢市とは関係のない<strong>非公式</strong>の申込支援ツールです。</p>
       <ul><li>掲載情報・計算結果・作成したPDFの<strong>正確性は保証しません</strong>。</li><li>申込みの前に必ず市の「申込ナビ」原本と藤沢市ホームページで確認し、不明点は保育課へお問い合わせください。</li><li>入力した情報はこの端末のブラウザにだけ保存され、外部に送信されません。</li></ul>
-      <p><a href="#terms">利用規約の全文を読む</a></p>
+      <p><a href="#terms">利用規約</a>・<a href="#privacy">プライバシーポリシー</a>を読む</p>
       <div class="row"><button class="btn primary" id="mok">理解して利用する</button></div></div>`;
     document.body.appendChild(back);
     $('#mok', back).onclick = () => { Store.agreeTerms(); back.remove(); };
-    $('a', back).onclick = () => back.remove();
+    $('a', back).forEach(x => (x.onclick = () => back.remove()));
   }
 
   // ============ ⋮メニュー ============

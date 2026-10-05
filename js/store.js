@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 合同会社Pons
 // 自己情報はすべてブラウザの localStorage にのみ保存する（サーバー送信なし）
 (function () {
   const KEY = 'fujisawa-hoiku-portal:v1';
