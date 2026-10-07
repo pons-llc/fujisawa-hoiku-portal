@@ -300,7 +300,73 @@
     ctx.restore();
   }
 
+  // ---------- データ連携用シート（QRコード） ----------
+  // 藤沢市の様式ではなく、追加の1枚。申込内容を圧縮したデータをQRコードにして印刷する。
+  const loadScript = src => new Promise((res, rej) => { if ([...document.scripts].some(s => s.src === src)) return res(); const el = document.createElement('script'); el.src = src; el.onload = res; el.onerror = () => rej(new Error('ライブラリを読み込めませんでした（インターネット接続を確認してください）')); document.head.appendChild(el); });
+  const QR_LIB = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+  async function renderQRSheet(s) {
+    await loadScript(QR_LIB);
+    const enc = await QRData.encode(s);
+    const W = 2480, H = 3508, mm = W / 210; // A4・300dpi
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.dataset.png = '1';
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    const text = (x, y, str, size, { bold = false, color = '#111', align = 'left', max = 0 } = {}) => { ctx.font = `${bold ? '700 ' : ''}${size * mm}px ${FONT}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.fillText(str, x * mm, y * mm, max ? max * mm : undefined); };
+    // 見出し
+    ctx.fillStyle = '#0017c1'; ctx.fillRect(15 * mm, 14 * mm, 180 * mm, 1.2 * mm);
+    text(15, 26, '保育施設利用申込　データ連携用シート', 7.5, { bold: true });
+    text(15, 34, 'このシートは藤沢市の正式な様式ではありません。申込書の内容をデータにしたQRコードです（非公式ツールで作成）。', 3.2, { color: '#333', max: 180 });
+    // QRコード
+    const n = enc.chunks.length, cols = n === 1 ? 1 : 2;
+    const box = n === 1 ? 90 : 82; // 1つあたりの最大一辺（mm）
+    enc.chunks.forEach((chunk, i) => {
+      const qr = qrcode(0, 'M'); qr.addData(chunk, 'Alphanumeric'); qr.make();
+      const count = qr.getModuleCount();
+      const px = Math.max(4, Math.floor((box * mm) / (count + 8))); // 1セルの画素数（整数で鮮明に）
+      const size = px * (count + 8);
+      const col = i % cols, row = Math.floor(i / cols);
+      const left = cols === 1 ? (W - size) / 2 : 15 * mm + col * (92 * mm) + (88 * mm - size) / 2;
+      const top = 42 * mm + row * (box + 14) * mm;
+      ctx.fillStyle = '#000';
+      for (let r = 0; r < count; r++) for (let c = 0; c < count; c++) if (qr.isDark(r, c)) ctx.fillRect(left + (c + 4) * px, top + (r + 4) * px, px, px);
+      text((left + size / 2) / mm, top / mm + size / mm + 5, n > 1 ? `QR ${i + 1} / ${n}` : 'QR 1 / 1', 3.4, { align: 'center', bold: true });
+    });
+    let y = 42 + Math.ceil(n / cols) * (box + 14) + 6;
+    // 照合情報と内容の要約
+    const a = s.application, rep = a.representative === 'father' ? s.father : s.mother;
+    const first = a.wishes.find(w => w.id || w.name);
+    const lines = [
+      ['照合コード', enc.code + '（読み取り時に同じ値になることを確認してください）'],
+      ['作成日時', new Date().toLocaleString('ja-JP')],
+      ['代表者', (rep.name || '') + (a.representative === 'father' ? '（父）' : '（母）')],
+      ['申込児童', s.children.map(c => `${c.name || ''}（${c.birth || '出生前'}）`).join('、')],
+      ['保育希望開始', (a.startMonth || '') + (a.startMonth === '2027-04' ? `（4月${a.aprilRound}次）` : '')],
+      ['第1希望', first ? `${first.id || ''} ${first.name || ''}` : ''],
+      ['データ量', `${enc.bytes}バイト・QR ${n}個`],
+    ];
+    ctx.strokeStyle = '#999'; ctx.lineWidth = 2;
+    ctx.strokeRect(15 * mm, y * mm, 180 * mm, (lines.length * 8 + 6) * mm);
+    lines.forEach(([k, v], i) => { text(20, y + 9 + i * 8, k, 3.6, { bold: true, color: '#333' }); text(58, y + 9 + i * 8, v, 3.6, { max: 132 }); });
+    y += lines.length * 8 + 14;
+    const notes = [
+      '【職員の方へ】',
+      '・QRコードの読み取りは https://hoiku.pons-llc.com/#reader で行えます（読み取りはブラウザ内で処理され、外部に送信されません）。',
+      '・QRリーダー（キーボード入力型）で読んだ文字列の貼り付け、スキャンしたPDF・画像の読み込みに対応し、CSVで出力できます。',
+      '・印刷後に手書きで修正・追記された場合は、紙の申込書の記載が優先されます。QRの内容と紙の内容を必ず照合してください。',
+      '・マイナンバー、署名、誓約書のチェックはQRに含まれていません。',
+      '',
+      '【申込者の方へ】',
+      '・このシートは申込書類と一緒に提出してください。提出が必須の書類ではありません。',
+      '・このシートを受け付けるかどうか、データとして利用するかどうかは藤沢市の判断によります。',
+      '・QRコードには申込書に書いた個人情報が入っています。取り扱いにご注意ください。',
+    ];
+    notes.forEach((t, i) => text(15, y + i * 6.2, t, 3.2, { bold: t.startsWith('【'), color: '#222', max: 180 }));
+    text(15, 287, '藤沢市 保育所申込ポータル（非公式・合同会社Pons）https://hoiku.pons-llc.com/ ／ データ形式：FH1（JSON・deflate・Base45）', 2.6, { color: '#666', max: 180 });
+    return cv;
+  }
+
   async function renderForm(key, s, opts) {
+    if (key === 'qrsheet') return [{ canvas: await renderQRSheet(s), label: 'データ連携用シート（QRコード）' }];
     const f = FORMS[key]; const out = [];
     const targets = f.perChild ? s.children.map((c, i) => ({ c, label: `（${c.name || '児童' + (i + 1)}）` })) : [{ c: null, label: '' }];
     for (const t of targets) for (const pg of f.pages) out.push({ canvas: await renderPage(pg, s, t.c, opts), label: f.title + t.label });
@@ -313,10 +379,11 @@
     const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
     canvases.forEach((cv, i) => {
       if (i) doc.addPage('a4', 'portrait');
-      const data = cv.toDataURL('image/jpeg', 0.88);
+      const png = cv.dataset.png === '1';
+      const data = png ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.88);
       const pw = 210, ph = 297, r = cv.width / cv.height;
       let w = pw, h = pw / r; if (h > ph) { h = ph; w = ph * r; }
-      doc.addImage(data, 'JPEG', (pw - w) / 2, (ph - h) / 2, w, h, undefined, 'FAST');
+      doc.addImage(data, png ? 'PNG' : 'JPEG', (pw - w) / 2, (ph - h) / 2, w, h, undefined, 'FAST');
     });
     doc.setProperties({ title: filename, creator: '藤沢市保育所申込ポータル（非公式）' });
     doc.save(filename);

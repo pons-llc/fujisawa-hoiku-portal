@@ -67,8 +67,8 @@
   // ============ ルーター ============
   const views = {};
   let cleanup = null;
-  const TITLES = { home: '保育所申込（藤沢市）', facilities: '保育園をさがす', profile: 'マイ申請', score: '点数・保育料', forms: '申込書PDF', guide: '入園案内', terms: '利用規約', privacy: 'プライバシーポリシー' };
-  const SUB_PAGES = ['guide', 'terms', 'privacy'];
+  const TITLES = { home: '保育所申込（藤沢市）', facilities: '保育園をさがす', profile: 'マイ申請', score: '点数・保育料', forms: '申込書PDF', guide: '入園案内', terms: '利用規約', privacy: 'プライバシーポリシー', reader: 'QR読み取り（職員向け）' };
+  const SUB_PAGES = ['guide', 'terms', 'privacy', 'reader'];
   function route() {
     let name = (location.hash || '#home').slice(1).split('?')[0];
     if (!views[name]) name = 'home';
@@ -368,6 +368,7 @@
           <label><input type="checkbox" name="fk" value="mousikomi" checked>教育・保育給付認定申請書 兼 保育施設利用申込書（4ページ）</label>
           <label><input type="checkbox" name="fk" value="chosa" checked>保育施設利用申込みの児童調査書（児童ごと2ページ）</label>
           <label><input type="checkbox" name="fk" value="jyuri" checked>誓約書・保育施設利用申込受理通知（2ページ）</label>
+          <label><input type="checkbox" name="fk" value="qrsheet" checked>データ連携用シート（QRコード・1ページ）<span class="help">市の様式ではない追加の1枚です。申込内容をQRコードにして、職員がデータとして読み取れるようにします。</span></label>
         </div>
         <details style="margin-top:8px"><summary>印字位置の微調整（プリンタでずれる場合）</summary>
           <div class="fields" style="margin-top:8px">${field('formOffset.x', '横方向（pt、＋で右へ）', 'number')}${field('formOffset.y', '縦方向（pt、＋で下へ）', 'number')}</div>
@@ -624,6 +625,122 @@
       <div class="row" style="margin-top:16px"><a class="btn primary" href="#score">点数・必要書類を確認する →</a><a class="btn" href="#forms">申込書PDFを作る →</a></div>`;
   }
 
+  // ============ 職員向け：QR読み取り ============
+  views.reader = el => {
+    const texts = window.__readerTexts = window.__readerTexts || new Set();
+    el.innerHTML = `
+      <p class="note compact">申込者が提出した「データ連携用シート」のQRコードを読み取り、申込内容をデータ（CSV・JSON）にします。読み取りはこのブラウザの中だけで行い、外部には送信しません。<strong>手書きで修正・追記がある場合は紙の申込書が優先です。</strong>必ず照合してください。</p>
+      <div class="card">
+        <h3>1. QRコードを読み取る</h3>
+        <div class="f"><label for="rdText">QRリーダーで読んだ文字列を貼り付け（1行に1つ・複数可）</label><textarea id="rdText" rows="3" placeholder="FH1-XXXXXX-1-1-…"></textarea></div>
+        <div class="row"><button class="btn primary" id="rdAdd">貼り付けた文字列を読む</button></div>
+        <div class="f" style="margin-top:16px"><label for="rdFile">スキャンしたPDF・画像から読む（複数可）</label><input type="file" id="rdFile" accept="application/pdf,image/*" multiple></div>
+        <div class="row"><button class="btn" id="rdCam">📷 カメラで読む</button><button class="btn small danger" id="rdClear">すべてクリア</button></div>
+        <video id="rdVideo" playsinline muted hidden style="width:100%;max-height:50vh;margin-top:8px;border-radius:8px;background:#000"></video>
+        <div id="rdStatus" class="muted" style="margin-top:8px"></div>
+      </div>
+      <div id="rdOut"></div>`;
+    const status = t => { const x = $('#rdStatus', el); if (x) x.textContent = t; };
+    const loadScript = src => new Promise((res, rej) => { if ([...document.scripts].some(s => s.src === src)) return res(); const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('ライブラリを読み込めませんでした')); document.head.appendChild(s); });
+    const JSQR = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+    const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    function scanCanvas(cv) {
+      const ctx = cv.getContext('2d', { willReadFrequently: true }); const found = [];
+      for (let k = 0; k < 8; k++) {
+        const img = ctx.getImageData(0, 0, cv.width, cv.height);
+        const r = jsQR(img.data, cv.width, cv.height, { inversionAttempts: 'dontInvert' });
+        if (!r || !r.data) break;
+        found.push(r.data);
+        const L = r.location; ctx.fillStyle = '#fff'; ctx.beginPath();
+        [L.topLeftCorner, L.topRightCorner, L.bottomRightCorner, L.bottomLeftCorner].forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+        ctx.closePath(); ctx.lineWidth = 12; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.fill();
+      }
+      return found;
+    }
+    async function fromImage(file) {
+      const url = URL.createObjectURL(file);
+      try {
+        const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+        const scale = Math.min(1, 3000 / Math.max(img.naturalWidth, img.naturalHeight));
+        const cv = document.createElement('canvas'); cv.width = Math.round(img.naturalWidth * scale); cv.height = Math.round(img.naturalHeight * scale);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        return scanCanvas(cv);
+      } finally { URL.revokeObjectURL(url); }
+    }
+    async function fromPDF(file) {
+      // ワーカー本体も先に読み込み、メインスレッドで処理する（ファイル直開き・CDN配信でも確実に動かすため）
+      await loadScript(PDFJS); await loadScript(PDFJS_WORKER); pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+      const found = [];
+      for (let p = 1; p <= pdf.numPages; p++) {
+        status(`${file.name}：${p}/${pdf.numPages}ページを読み取り中…`);
+        const page = await pdf.getPage(p); const vp0 = page.getViewport({ scale: 1 });
+        const vp = page.getViewport({ scale: 2600 / vp0.width });
+        const cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+        await page.render({ canvasContext: cv.getContext('2d'), viewport: vp, intent: 'print' }).promise; // print：rAFに依存せず描画（裏タブでも止まらない）
+        found.push(...scanCanvas(cv));
+      }
+      return found;
+    }
+    async function addTexts(list) { let n = 0; list.forEach(t => { t = String(t).trim(); if (t && !texts.has(t)) { texts.add(t); n++; } }); await show(); return n; }
+    async function show() {
+      const out = $('#rdOut', el); if (!out) return;
+      if (!texts.size) { out.innerHTML = ''; return; }
+      const { results, errors } = await QRData.decode([...texts]);
+      window.__readerResults = results;
+      const ok = results.filter(r => r.rows);
+      out.innerHTML = `
+        <div class="card"><h3>2. 読み取り結果（${results.length}件）</h3>
+          ${errors.length ? `<div class="note compact">${errors.map(esc).join('<br>')}</div>` : ''}
+          <div class="row">${ok.length ? '<button class="btn primary" id="rdCSV">CSVで保存（全件）</button><button class="btn" id="rdJSON">JSONで保存（全件）</button>' : ''}</div>
+          ${results.map(r => {
+            const m = new Map((r.rows || []).map(([s, l, v]) => [`${s}_${l}`, v]));
+            const who = r.rows ? [m.get('母_氏名') || m.get('父_氏名'), ...[1, 2, 3].map(i => m.get(`児童${i}_氏名`))].filter(Boolean).join('・') : '';
+            return `<div class="rd-item ${r.ok ? 'ok' : 'ng'}">
+              <div class="row" style="justify-content:space-between"><strong>照合コード ${esc(r.code)}</strong><span class="pill ${r.ok ? 'accent' : 'warn'}">${r.ok ? '照合OK' : '要確認'}</span></div>
+              ${r.error ? `<div class="chat-error">${esc(r.error)}</div>` : ''}
+              ${r.rows ? `<div>${esc(who)}</div><details><summary>内容を表示（${r.rows.length}項目）</summary><div class="table-wrap"><table class="tbl"><tbody>${r.rows.map(([s, l, v]) => `<tr><th>${esc(s)}</th><td>${esc(l)}</td><td>${esc(v)}</td></tr>`).join('')}</tbody></table></div></details>` : ''}
+            </div>`;
+          }).join('')}
+        </div>`;
+      const dl = (name, type, content) => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([content], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+      const stamp = today();
+      const csvBtn = $('#rdCSV', out); if (csvBtn) csvBtn.onclick = () => dl(`保育所申込データ_${stamp}.csv`, 'text/csv', QRData.toCSV(results));
+      const jsBtn = $('#rdJSON', out); if (jsBtn) jsBtn.onclick = () => dl(`保育所申込データ_${stamp}.json`, 'application/json', JSON.stringify(ok.map(r => ({ 照合コード: r.code, 照合結果: r.ok ? '一致' : '不一致', 項目: Object.fromEntries(r.rows.map(([s, l, v]) => [`${s}_${l}`, v])), 元データ: r.data })), null, 2));
+    }
+
+    $('#rdAdd', el).onclick = async () => { const n = await addTexts($('#rdText', el).value.split(/\r?\n/)); $('#rdText', el).value = ''; status(`${n}件の文字列を追加しました。`); };
+    $('#rdFile', el).onchange = async e => {
+      try {
+        await loadScript(JSQR); let total = 0;
+        for (const f of e.target.files) { status(`${f.name} を読み取り中…`); const found = f.type === 'application/pdf' || /\.pdf$/i.test(f.name) ? await fromPDF(f) : await fromImage(f); total += await addTexts(found); }
+        status(`QRコードを ${total}個 読み取りました。${total ? '' : '見つからない場合は、スキャンの解像度を300dpi以上にしてください。'}`);
+      } catch (err) { status('読み取りに失敗しました：' + err.message); }
+      e.target.value = '';
+    };
+    let stream = null, timer = null;
+    const stopCam = () => { if (timer) clearInterval(timer); timer = null; if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; const v = $('#rdVideo', el); if (v) v.hidden = true; const b = $('#rdCam', el); if (b) b.textContent = '📷 カメラで読む'; };
+    $('#rdCam', el).onclick = async () => {
+      if (stream) return stopCam();
+      try {
+        await loadScript(JSQR);
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 } } });
+        const v = $('#rdVideo', el); v.srcObject = stream; v.hidden = false; await v.play();
+        $('#rdCam', el).textContent = '■ カメラを止める'; status('QRコードをカメラに向けてください。');
+        const cv = document.createElement('canvas');
+        timer = setInterval(async () => {
+          if (!v.videoWidth) return; cv.width = v.videoWidth; cv.height = v.videoHeight; cv.getContext('2d').drawImage(v, 0, 0);
+          const n = await addTexts(scanCanvas(cv)); if (n) { toast('QRコードを読み取りました'); if (navigator.vibrate) navigator.vibrate(80); }
+        }, 400);
+      } catch (err) { stopCam(); status('カメラを使えませんでした：' + err.message); }
+    };
+    $('#rdClear', el).onclick = () => { texts.clear(); show(); status('クリアしました。'); };
+    show();
+    return stopCam;
+  };
+
   // ============ 利用規約 ============
   views.terms = el => {
     el.innerHTML = `
@@ -679,16 +796,19 @@
         <h3>4. 外部サービスの利用</h3>
         <p>本サイトは表示や機能のために次の外部サービスから資源を読み込みます。読み込みの際、通常の通信に伴う情報（IPアドレス、ブラウザの種類、閲覧したページのURL等）が各提供元に送信されます。入力内容が送信されることはありません。各提供元における情報の取り扱いは、それぞれのプライバシーポリシーをご確認ください。</p>
         <ul>
-          <li>cdnjs（Cloudflare）：PDF作成ライブラリ jsPDF、地図ライブラリ Leaflet の配信</li>
+          <li>cdnjs（Cloudflare）：PDF作成ライブラリ jsPDF、地図ライブラリ Leaflet、QRコード生成ライブラリ qrcode-generator、PDF読み込みライブラリ pdf.js の配信</li>
+          <li>jsDelivr：QRコード読み取りライブラリ jsQR の配信（職員向けの読み取り画面のみ）</li>
           <li>OpenStreetMap：地図画像（タイル）の配信</li>
           <li>Google Fonts：フォント（Noto Sans JP）の配信</li>
         </ul>
         <p>また、施設HP・Googleマップ・藤沢市HP等の外部サイトへのリンクを開いた場合は、リンク先の取り扱いに従います。</p>
-        <h3>5. 第三者提供</h3>
+        <h3>5. QRコードとカメラ</h3>
+        <p>「データ連携用シート」のQRコードには、申込書に印字した内容（個人情報を含む）が入ります。職員向けの読み取り画面でのQRコードの読み取り（カメラ・PDF・画像）は、すべてお使いのブラウザの中で処理され、映像や読み取った内容が運営者や外部に送信されることはありません。</p>
+        <h3>6. 第三者提供</h3>
         <p>運営者は利用者の個人情報を取得しないため、第三者に提供することもありません。</p>
-        <h3>6. お問い合わせ</h3>
+        <h3>7. お問い合わせ</h3>
         <p>本ポリシーに関するお問い合わせは ${CONTACT_HTML} までご連絡ください。</p>
-        <h3>7. 改定</h3>
+        <h3>8. 改定</h3>
         <p>本ポリシーは必要に応じて改定することがあります。改定後の内容は本ページに掲載した時点から効力を生じます。</p>
         <p class="muted">2026年10月5日 制定<br>${OPERATOR}</p>
       </div>`;

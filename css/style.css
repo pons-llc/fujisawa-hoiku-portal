@@ -393,3 +393,33 @@ body.chat-mode footer { display: none; }
 .doc-off .why { color: var(--gray-536); }
 .off-mark { flex: none; width: 24px; font-size: .625rem; font-weight: 700; color: var(--gray-536); border: 1px solid var(--gray-300); border-radius: 4px; text-align: center; line-height: 1.6; margin-top: 3px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* QR読み取り（職員向け） */
+.rd-item { border: 1px solid var(--line-soft); border-left: 6px solid var(--green-800); border-radius: 0 var(--radius) var(--radius) 0; padding: 10px 14px; margin-top: 12px; display: grid; gap: 6px; }
+.rd-item.ng { border-left-color: var(--danger); }
+.rd-item .tbl th { white-space: nowrap; color: var(--muted); font-weight: 400; }
+
+/* チャット：目次・答えのなおし */
+.chat-sheet-back { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1500; display: flex; align-items: flex-end; justify-content: center; }
+.chat-sheet { background: var(--surface); width: 100%; max-width: 760px; max-height: 80vh; overflow: auto; border-radius: 16px 16px 0 0; padding: 4px 16px calc(16px + env(safe-area-inset-bottom)); display: grid; gap: 10px; }
+.chat-sheet h3 { margin: 4px 0 0; font-size: 1.125rem; }
+.toc-list { display: grid; gap: 6px; }
+.toc-item { display: flex; justify-content: space-between; align-items: center; min-height: 52px; padding: 8px 16px; border-radius: 12px; border: 1px solid var(--line-soft); background: var(--surface); color: var(--text); font: inherit; font-size: 1rem; font-weight: 700; cursor: pointer; text-align: left; }
+.toc-item:hover:not(:disabled) { background: var(--blue-50); border-color: var(--accent); }
+.toc-item:disabled { color: var(--gray-420); cursor: default; }
+.toc-state { font-size: .8125rem; font-weight: 400; color: var(--muted); }
+.toc-state.ok { color: var(--green-800); font-weight: 700; }
+.toc-state.ok::before { content: "✓ "; }
+.keep-btn { width: 100%; justify-content: flex-start; margin-bottom: 8px; background: var(--green-50); border-color: var(--green-800); color: var(--green-800); white-space: normal; text-align: left; }
+.keep-btn:hover { background: var(--green-50); color: var(--green-800); border-color: var(--green-800); }
+.msg.me .bubble.static { cursor: default; }
+.dock-sub { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+
+/* チャット：やりとり部分と回答部分の境目をはっきりさせる */
+.chat-log { background: #eef2f8; border-radius: 16px 16px 0 0; padding: 12px 12px 16px; margin: 0 -4px; }
+.msg.bot .bubble { background: #fff; border: 1px solid #dde3ee; }
+.msg.bot.current .bubble { background: #fff; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(0, 23, 193, .12); }
+.msg.bot.note-msg .bubble { background: var(--yellow-50); border-color: #f0e2a8; }
+.msg.bot.done .bubble { background: var(--green-50); border-color: #b9dcc8; }
+.chat-dock { position: relative; background: #fff; border-top: 3px solid var(--accent); box-shadow: 0 -6px 14px rgba(0, 0, 40, .10); margin: 0 -16px; padding: 10px 16px 6px; border-radius: 0; }
+.chat-dock::before { content: "あなたの こたえ"; display: block; font-size: .75rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; letter-spacing: .04em; }

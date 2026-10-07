@@ -29,5 +29,8 @@ Apache License 2.0 の対象外のもの（第三者の著作物・データ）
 3. 実行時に読み込む外部ライブラリ・サービス（リポジトリには同梱していません）
    - jsPDF (MIT License)        https://github.com/parallax/jsPDF
    - Leaflet (BSD-2-Clause)     https://leafletjs.com/
+   - qrcode-generator (MIT)     https://github.com/kazuhikoarase/qrcode-generator
+   - jsQR (Apache-2.0)          https://github.com/cozmo/jsQR
+   - PDF.js (Apache-2.0)        https://mozilla.github.io/pdf.js/
    - OpenStreetMap 地図タイル    © OpenStreetMap contributors (ODbL)
    - Noto Sans JP (SIL Open Font License 1.1) via Google Fonts

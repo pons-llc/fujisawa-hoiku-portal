@@ -191,6 +191,58 @@
     return String(v);
   }
 
+  // ---------- 区切り（目次）と巻き戻し ----------
+  function sectionOf(id) {
+    if (/^(start|aprilRound)$/.test(id)) return 'いつから';
+    if (/^(residence|contractDocs|postal|address1|address2)$/.test(id)) return '住まい';
+    if (/^(nChildren|child\d)/.test(id)) return '子ども';
+    if (/^(single|singleWho|singleReason|noRelative)$/.test(id)) return '家族の かたち';
+    if (/^mother\./.test(id)) return 'お母さん';
+    if (/^father\./.test(id)) return 'お父さん';
+    if (/^(ikukyuChoice|representative)$/.test(id)) return '育休・手紙の あて先';
+    if (/^(members|member\d|siblings18|gp\.)/.test(id)) return 'いっしょに 住む 家族';
+    if (/^(motherPregnant|dueDate|afterBirth|welfare|familyDisability|familyDisabilityNames|reg2026|reg2026City)$/.test(id)) return 'そのほかの 確認';
+    if (/^wish/.test(id)) return '入りたい 保育園';
+    return '申込みの 条件';
+  }
+  function sections(Q) {
+    const A = ans(); const out = [];
+    Q.forEach((q, i) => {
+      const name = sectionOf(q.id); let s = out.find(x => x.name === name);
+      if (!s) { s = { name, first: i, total: 0, done: 0 }; out.push(s); }
+      s.total++; if (q.id in A) s.done++;
+    });
+    return out;
+  }
+  // index 以降の答えを「前の答え」に移して、そこから聞き直す（入力した値そのものは残る）
+  function rewind(Q, index) {
+    const A = ans(); const prev = (S().chat.prev = S().chat.prev || {});
+    Q.slice(index).forEach(q => { if (q.id in A) { prev[q.id] = A[q.id]; delete A[q.id]; } });
+    error = ''; Store.save(); render();
+  }
+  function sheet(html) {
+    const old = root.querySelector('.chat-sheet-back'); if (old) old.remove();
+    const back = document.createElement('div'); back.className = 'chat-sheet-back';
+    back.innerHTML = `<div class="chat-sheet" role="dialog" aria-modal="true">${html}</div>`;
+    root.appendChild(back);
+    back.addEventListener('click', e => { if (e.target === back || e.target.closest('[data-close-sheet]')) back.remove(); });
+    const f = back.querySelector('button'); if (f) f.focus();
+    return back;
+  }
+  function openToc() {
+    const Q = flow(); const cur = current(Q); const curIdx = cur ? Q.indexOf(cur) : Q.length;
+    const list = sections(Q).map(s => {
+      const state = s.first >= curIdx ? 'まだ' : s.done >= s.total ? 'こたえた' : 'とちゅう';
+      return `<button class="toc-item" data-toc="${s.first}"${s.first > curIdx ? ' disabled' : ''}><span class="toc-name">${esc(s.name)}</span><span class="toc-state ${state === 'こたえた' ? 'ok' : ''}">${state}</span></button>`;
+    }).join('');
+    sheet(`<div class="sheet-handle" aria-hidden="true"></div><h3>どこから こたえなおしますか？</h3><p class="hint">えらんだ ところから もういちど 聞きます。前の 答えは のこっているので、かえない ときは「前と 同じ」を おせば すぐ すすめます。</p><div class="toc-list"><button class="toc-item" data-toc="0"><span class="toc-name">さいしょから</span><span class="toc-state"></span></button>${list}</div><div class="row"><button class="btn" data-close-sheet>とじる</button></div>`);
+  }
+  function openEdit(id) {
+    const Q = flow(); const q = Q.find(x => x.id === id); if (!q) return;
+    const a = ans()[id];
+    sheet(`<div class="sheet-handle" aria-hidden="true"></div><h3>この 答えを なおしますか？</h3><div class="msg bot"><div class="bubble">${esc(q.text)}</div></div><div class="msg me"><div class="bubble static">${esc(a ? a.label : '')}</div></div><div class="choice-list"><button class="choice-btn" data-edit-one="${esc(id)}">この しつもんだけ なおす</button><button class="choice-btn" data-edit-from="${esc(id)}">ここから ぜんぶ こたえなおす</button></div><div class="row"><button class="btn" data-close-sheet>やめる</button></div>`);
+  }
+
   function render(el) {
     root = el || root; if (!root) return;
     const Q = flow(); const A = ans(); const cur = current(Q);
@@ -210,10 +262,10 @@
     if (cur) {
       html += bot(`${lines(cur.text)}${cur.help ? `<div class="hint">${lines(cur.help)}</div>` : ''}`, 'current');
     } else {
-      html += bot('おつかれさまでした！ 申込書に 書く ことが ぜんぶ そろいました。🎉<br>つぎは 必要な 書類を 見て、申込書の PDFを 作りましょう。<br><small>答えを なおしたい ときは、自分の 答え（右がわの 吹き出し）を タップしてください。</small>', 'done');
+      html += bot('おつかれさまでした！ 申込書に 書く ことが ぜんぶ そろいました。🎉<br>つぎは 必要な 書類を 見て、申込書の PDFを 作りましょう。<br><small>答えを なおしたい ときは、自分の 答え（右がわの 吹き出し）を タップするか、下の「☰ 目次から もどる」を おしてください。</small>', 'done');
     }
     html += '</div>';
-    html += `<div class="chat-dock">${error ? `<div class="chat-error">${esc(error)}</div>` : ''}${cur ? inputHTML(cur) : `<div class="row"><button class="btn primary" data-mode="docs">必要な 書類を 見る</button><a class="btn primary" href="#forms">申込書PDFを 作る</a></div><div class="row" style="margin-top:8px"><a class="btn" href="#score">点数を 見る</a></div><div class="row" style="margin-top:8px"><button class="btn small" data-act="restart">はじめから やりなおす</button></div>`}${cur && answered.length ? '<div class="dock-sub"><button class="link-btn" data-act="back">← ひとつ もどる</button></div>' : ''}</div>`;
+    html += `<div class="chat-dock">${error ? `<div class="chat-error">${esc(error)}</div>` : ''}${cur ? inputHTML(cur) : `<div class="row"><button class="btn primary" data-mode="docs">必要な 書類を 見る</button><a class="btn primary" href="#forms">申込書PDFを 作る</a></div><div class="row" style="margin-top:8px"><a class="btn" href="#score">点数を 見る</a></div><div class="row" style="margin-top:8px"><button class="btn small" data-act="restart">はじめから やりなおす</button></div>`}${answered.length ? `<div class="dock-sub">${cur ? '<button class="link-btn" data-act="back">← ひとつ もどる</button>' : ''}<button class="link-btn" data-act="toc">☰ 目次から もどる</button></div>` : ''}</div>`;
     root.innerHTML = html;
     const log = root.querySelector('#chatLog');
     requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; const inp = root.querySelector('.chat-dock input:not([type=checkbox])'); if (inp && !('ontouchstart' in window)) inp.focus({ preventScroll: true }); });
@@ -221,6 +273,11 @@
   }
 
   function inputHTML(q) {
+    const prev = (S().chat.prev || {})[q.id];
+    const keep = prev ? `<button class="btn keep-btn" data-act="keep">前と 同じ：${esc(prev.label)}</button>` : '';
+    return keep + inputCore(q);
+  }
+  function inputCore(q) {
     const v = q.get ? q.get() : '';
     const skip = q.optional ? '<button class="btn" data-act="skip">とばす</button>' : '';
     switch (q.type) {
@@ -267,6 +324,7 @@
     q.set(v);
     const note = q.after ? q.after(v) : null;
     ans()[q.id] = { v: q.type === 'facility' ? v.id : v, label: label(q, v), ...(note ? { note } : {}) };
+    if (S().chat.prev) delete S().chat.prev[q.id];
     if (!S().application.writtenDate) S().application.writtenDate = new Date().toISOString().slice(0, 10);
     Store.save();
     render();
@@ -282,13 +340,18 @@
       if (a === 'skip' && cur) return skip(cur);
       if (a === 'info' && cur) return answer(cur, 'ok');
       if (a === 'multi' && cur) return answer(cur, [...el.querySelectorAll('.chip-list input:checked')].map(i => i.value));
-      if (a === 'back') { const idx = cur ? Q.indexOf(cur) : Q.length; const prev = Q[idx - 1]; if (prev) { delete ans()[prev.id]; error = ''; Store.save(); render(); } return; }
-      if (a === 'restart') { if (confirm('チャットを はじめから やりなおしますか？（入力した 内容は のこります）')) { S().chat = { answers: {} }; Store.save(); render(); } return; }
+      if (a === 'back') { const idx = cur ? Q.indexOf(cur) : Q.length; if (idx > 0) rewind(Q, idx - 1); return; }
+      if (a === 'restart') { if (confirm('チャットを はじめから やりなおしますか？（入力した 内容は のこります）')) { const Q2 = flow(); rewind(Q2, 0); } return; }
+      if (a === 'keep' && cur) { const p = S().chat.prev[cur.id]; ans()[cur.id] = p; delete S().chat.prev[cur.id]; error = ''; Store.save(); return render(); }
+      if (a === 'toc') return openToc();
+      const toc = e.target.closest('[data-toc]'); if (toc) { e.target.closest('.chat-sheet-back').remove(); return rewind(Q, +toc.dataset.toc); }
+      const one = e.target.closest('[data-edit-one]'); if (one) { const id = one.dataset.editOne; e.target.closest('.chat-sheet-back').remove(); const p = (S().chat.prev = S().chat.prev || {}); if (ans()[id]) p[id] = ans()[id]; delete ans()[id]; error = ''; Store.save(); return render(); }
+      const from = e.target.closest('[data-edit-from]'); if (from) { e.target.closest('.chat-sheet-back').remove(); return rewind(Q, Q.findIndex(q => q.id === from.dataset.editFrom)); }
       const ed = e.target.closest('[data-edit]');
-      if (ed) { delete ans()[ed.dataset.edit]; error = ''; Store.save(); render(); }
+      if (ed) return openEdit(ed.dataset.edit);
     });
     el.addEventListener('submit', e => { e.preventDefault(); const cur = current(flow()); if (cur) answer(cur, el.querySelector('#chatIn').value); });
   }
 
-  window.Chat = { mount(el) { root = el; error = ''; bind(el); render(el); }, flow };
+  window.Chat = { mount(el) { root = el; error = ''; bind(el); render(el); }, flow, sectionOf };
 })();
