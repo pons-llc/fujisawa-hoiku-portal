@@ -78,6 +78,8 @@
     document.body.dataset.view = name;
     document.body.classList.toggle('chat-mode', name === 'profile' && ((S().ui && S().ui.profileMode) || 'chat') === 'chat');
     $('#backBtn').hidden = !SUB_PAGES.includes(name);
+    $('#previewBtn').hidden = name !== 'profile';
+    if (overlayClose) overlayClose();
     closeMenu();
     if (cleanup) { try { cleanup(); } catch (e) {} cleanup = null; }
     const app = $('#app');
@@ -392,7 +394,7 @@
       const pages = await render($('#grid', el).checked);
       const pv = $('#preview', el); pv.innerHTML = '';
       pages.forEach((p, i) => { const fig = document.createElement('figure'); fig.appendChild(p.canvas); const cap = document.createElement('figcaption'); cap.textContent = `${i + 1}. ${p.label}`; fig.appendChild(cap); pv.appendChild(fig);
-        p.canvas.onclick = () => { const z = document.createElement('div'); z.className = 'zoom'; const c = p.canvas.cloneNode(); c.getContext('2d').drawImage(p.canvas, 0, 0); z.appendChild(c); z.onclick = () => z.remove(); document.body.appendChild(z); }; });
+        p.canvas.onclick = () => zoomCanvas(p.canvas); });
       $('#fstatus', el).textContent = `${pages.length}ページ。画像をクリックで拡大。`;
     };
     $('#pdf', el).onclick = async () => {
@@ -833,6 +835,100 @@
   $('#menuBtn').addEventListener('click', e => { e.stopPropagation(); const m = $('#menu'); m.hidden = !m.hidden; $('#menuBtn').setAttribute('aria-expanded', String(!m.hidden)); });
   document.addEventListener('click', e => { if (!e.target.closest('#menu')) closeMenu(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+  // ============ 全画面の重ね表示（✕・Esc・端末の「戻る」で閉じる） ============
+  let overlayClose = null;
+  function openOverlay(inner, { onClose } = {}) {
+    if (overlayClose) overlayClose(true);
+    const back = document.createElement('div'); back.className = 'overlay'; back.setAttribute('role', 'dialog'); back.setAttribute('aria-modal', 'true');
+    back.appendChild(inner); document.body.appendChild(back); document.body.classList.add('no-scroll');
+    let closed = false;
+    const close = fromPop => {
+      if (closed) return; closed = true; overlayClose = null;
+      back.remove(); document.body.classList.remove('no-scroll');
+      document.removeEventListener('keydown', onKey); window.removeEventListener('popstate', onPop);
+      if (!fromPop && history.state && history.state.overlay) history.back();
+      onClose && onClose();
+    };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    const onPop = () => close(true);
+    document.addEventListener('keydown', onKey);
+    history.pushState({ overlay: true }, '', location.href); // Androidの「戻る」で閉じられるように
+    window.addEventListener('popstate', onPop);
+    back.addEventListener('click', e => { if (e.target.closest('[data-overlay-close]')) close(); });
+    overlayClose = close;
+    return close;
+  }
+  // 画像1枚の拡大表示（申込書PDF画面）
+  function zoomCanvas(src) {
+    const box = document.createElement('div'); box.className = 'ov-zoom';
+    const c = src.cloneNode(); c.getContext('2d').drawImage(src, 0, 0);
+    box.innerHTML = '<div class="ov-bar"><button class="ov-close" data-overlay-close aria-label="閉じる">✕</button><span class="ov-title">拡大表示</span></div>';
+    const sc = document.createElement('div'); sc.className = 'ov-scroll'; sc.appendChild(c); box.appendChild(sc);
+    openOverlay(box);
+  }
+
+  // ============ 申込書プレビュー（マイ申請から） ============
+  // 未入力の主な項目：[表示名, チャットの質問ID]
+  function missingFields(s) {
+    const m = []; const add = (cond, label, id) => { if (cond) m.push([label, id]); };
+    const h = s.household, a = s.application;
+    add(!h.postal, '郵便番号', 'postal'); add(!h.address1, '住所', 'address1');
+    s.children.forEach((c, i) => {
+      const w = s.children.length > 1 ? `${i + 1}人目の 子ども` : '子ども';
+      add(!c.name && !c.unborn, `${w}の 名前`, `child${i}.name`); add(!c.kana && !c.unborn, `${w}の ふりがな`, `child${i}.kana`);
+      add(!c.birth && !c.unborn, `${w}の 生まれた日`, `child${i}.birth`); add(!c.sex && !c.unborn, `${w}の 性別`, `child${i}.sex`);
+    });
+    [['mother', 'お母さん'], ['father', 'お父さん']].forEach(([k, w]) => {
+      const p = s[k]; if (!p.present) return;
+      add(!p.name, `${w}の 名前`, `${k}.name`); add(!p.kana, `${w}の ふりがな`, `${k}.kana`); add(!p.birth, `${w}の 生まれた日`, `${k}.birth`);
+      add(['work', 'offer', 'study', 'care'].includes(p.reason) && !p.hours, `${w}の 1か月の 時間`, `${k}.hours`);
+      add(['work', 'offer'].includes(p.reason) && !p.employer, `${w}の 会社の 名前`, `${k}.employer`);
+    });
+    add(!a.wishes.some(w => w.id || w.name), '入りたい 保育園', 'wish0');
+    a.wishes.forEach((w, i) => add((w.id || w.name) && !w.reason, `第${i + 1}希望の 理由`, `wish${i}.reason`));
+    return m;
+  }
+  async function openPreview() {
+    const s = S();
+    const box = document.createElement('div'); box.className = 'ov-preview';
+    box.innerHTML = `<div class="ov-bar"><button class="ov-close" data-overlay-close aria-label="閉じる">✕</button><span class="ov-title">申込書プレビュー</span><span class="ov-count" id="pvCount"></span></div>
+      <div class="ov-scroll" id="pvScroll"><p class="muted" style="padding:24px;text-align:center">申込書を 作っています…</p></div>
+      <div class="ov-foot"><div id="pvMissing"></div><div class="row"><button class="btn" data-overlay-close>入力に もどる</button><button class="btn primary" id="pvPdf">PDFを 保存</button></div></div>`;
+    const close = openOverlay(box);
+    // 未入力
+    const miss = missingFields(s);
+    $('#pvMissing', box).innerHTML = miss.length
+      ? `<details class="pv-miss"><summary>まだ 空いている 欄：${miss.length}か所</summary><div class="pv-miss-list">${miss.map(([l, id]) => `<button class="btn small" data-ask="${esc(id)}">${esc(l)} →</button>`).join('')}</div></details>`
+      : '<p class="pv-ok">✓ おもな 欄は ぜんぶ うまっています。印刷して マイナンバーと 署名を 手で 書いてください。</p>';
+    box.addEventListener('click', e => {
+      const b = e.target.closest('[data-ask]'); if (!b) return;
+      close(); Store.set('ui.profileMode', 'chat'); Chat.ask(b.dataset.ask); if (location.hash !== '#profile') location.hash = '#profile'; else route();
+      const cur = Chat.flow().find(q => !(q.id in (S().chat.answers || {})));
+      if (cur && cur.id !== b.dataset.ask) toast(`先に いくつか 聞いてから、「${b.textContent.replace(/ →$/, '')}」を 聞きます`);
+    });
+    if (!window.FORM_BG) { $('#pvScroll', box).innerHTML = '<p style="padding:24px">様式を 読み込み中です。少し 待ってから もう一度 開いてください。</p>'; return; }
+    // 描画
+    const pages = [];
+    for (const k of ['mousikomi', 'chosa', 'jyuri']) pages.push(...await Forms.renderForm(k, s));
+    if (!document.body.contains(box)) return;
+    const sc = $('#pvScroll', box); sc.innerHTML = '';
+    pages.forEach((p, i) => {
+      const fig = document.createElement('figure'); fig.className = 'pv-page'; fig.dataset.i = i + 1;
+      fig.appendChild(p.canvas); const cap = document.createElement('figcaption'); cap.textContent = `${i + 1}. ${p.label}`; fig.appendChild(cap);
+      p.canvas.addEventListener('click', () => fig.classList.toggle('zoomed'));
+      sc.appendChild(fig);
+    });
+    const count = $('#pvCount', box); count.textContent = `1 / ${pages.length}`;
+    const io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) count.textContent = `${en.target.dataset.i} / ${pages.length}`; }), { root: sc, threshold: 0.5 });
+    sc.querySelectorAll('.pv-page').forEach(f => io.observe(f));
+    $('#pvPdf', box).onclick = async () => {
+      if (!confirm('作成したPDFは非公式ツールによるもので、正確性は保証されません。印刷後に必ず内容を確認し、マイナンバー・署名・誓約書のチェックはご自身で記入してください。\n\nPDFを保存しますか？')) return;
+      try { await Forms.toPDF(pages.map(p => p.canvas), `保育施設申込書類_${today()}.pdf`); toast('PDFを保存しました'); } catch (err) { alert(err.message); }
+    };
+  }
+  window.App = { openPreview };
+  $('#previewBtn').addEventListener('click', openPreview);
 
   Store.load();
   window.addEventListener('hashchange', route);

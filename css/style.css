@@ -423,3 +423,37 @@ body.chat-mode footer { display: none; }
 .msg.bot.done .bubble { background: var(--green-50); border-color: #b9dcc8; }
 .chat-dock { position: relative; background: #fff; border-top: 3px solid var(--accent); box-shadow: 0 -6px 14px rgba(0, 0, 40, .10); margin: 0 -16px; padding: 10px 16px 6px; border-radius: 0; }
 .chat-dock::before { content: "あなたの こたえ"; display: block; font-size: .75rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; letter-spacing: .04em; }
+
+/* チャットの文字を少し小さく */
+.msg .bubble { font-size: .9375rem; line-height: 1.65; padding: 9px 13px; }
+.msg.me .bubble { font-size: .9375rem; }
+.hint { font-size: .8125rem; }
+.choice-btn { font-size: .9375rem; min-height: 46px; padding: 8px 14px; }
+.chip-check span { font-size: .875rem; min-height: 40px; }
+.msg.bot.pv-msg .bubble { background: var(--blue-50); border-color: #c5d7fb; }
+
+/* 全画面の重ね表示 */
+body.no-scroll { overflow: hidden; }
+.overlay { position: fixed; inset: 0; z-index: 3000; background: #3a3f4a; display: flex; flex-direction: column; }
+.overlay > div { display: flex; flex-direction: column; height: 100%; }
+.ov-bar { flex: none; display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 8px; padding-top: env(safe-area-inset-top); background: var(--surface); border-bottom: 1px solid var(--line-soft); }
+.ov-close { width: 48px; height: 48px; border-radius: 50%; border: none; background: none; font-size: 1.375rem; cursor: pointer; color: var(--text); }
+.ov-close:hover { background: var(--surface-2); }
+.ov-title { flex: 1; font-weight: 700; font-size: 1.0625rem; }
+.ov-count { font-size: .875rem; color: var(--muted); padding-right: 8px; }
+.ov-scroll { flex: 1; min-height: 0; overflow: auto; padding: 16px; display: grid; gap: 16px; align-content: start; justify-items: center; -webkit-overflow-scrolling: touch; }
+.ov-zoom .ov-scroll canvas { width: 200%; max-width: none; height: auto; background: #fff; justify-self: start; }
+.pv-page { margin: 0; width: 100%; max-width: 720px; overflow: auto; }
+.pv-page canvas { width: 100%; height: auto; display: block; background: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.35); cursor: zoom-in; }
+.pv-page.zoomed canvas { width: 220%; max-width: none; cursor: zoom-out; }
+.pv-page figcaption { color: #e6e6e6; font-size: .8125rem; margin-top: 6px; }
+.ov-foot { flex: none; background: var(--surface); border-top: 1px solid var(--line-soft); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); display: grid; gap: 8px; }
+.ov-foot .row { justify-content: flex-end; }
+.ov-foot .row .btn { flex: 1 1 0; }
+.pv-miss summary { color: var(--danger); font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.pv-miss-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; max-height: 30vh; overflow: auto; }
+.pv-ok { margin: 0; color: var(--green-800); font-weight: 700; font-size: .875rem; }
+/* プレビュー：ページを縦に積む（グリッドだと高さ固定の中で縮むため） */
+.ov-preview .ov-scroll { display: block; }
+.ov-preview .pv-page { margin: 0 auto 20px; flex: none; }
+.ov-zoom .ov-scroll { display: block; }

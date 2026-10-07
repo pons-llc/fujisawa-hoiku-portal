@@ -253,11 +253,17 @@
     const lines = s => esc(s).replace(/\n/g, '<br>');
     let html = `<div class="chat-progress" aria-label="すすみぐあい"><div style="width:${pct}%"></div></div><div class="chat-log" id="chatLog">`;
     html += bot('こんにちは。保育園の 申込書を いっしょに 作りましょう。<br>しつもんに こたえる だけで だいじょうぶです。<br><small>答えは この スマホの 中だけに 保存されます。マイナンバーは ここでは 聞きません（申込書に 手で 書いてください）。</small>');
-    answered.forEach(q => {
+    // 区切りを答え終えたところで「いまの 申込書を 見る」を出す（子ども・最後の保護者・保育園）
+    const secs = Q.map(q => sectionOf(q.id));
+    const parentSecs = secs.filter(x => x === 'お母さん' || x === 'お父さん');
+    const lastParent = parentSecs[parentSecs.length - 1];
+    const milestones = new Set(['子ども', '入りたい 保育園', lastParent].filter(Boolean));
+    answered.forEach((q, i) => {
       const a = A[q.id];
       html += bot(`${lines(typeof q.text === 'function' ? q.text() : q.text)}`);
       html += `<div class="msg me"><button class="bubble" data-edit="${esc(q.id)}" title="タップして なおす">${esc(a.label)}</button></div>`;
       if (a.note) html += bot(lines(a.note), 'note-msg');
+      if (milestones.has(secs[i]) && secs[i + 1] !== secs[i] && i + 1 <= answered.length) html += bot(`${esc(secs[i].replace(/ /g, ''))}の ことが 書けました。いまの 申込書を 見てみますか？<div class="row" style="margin-top:8px"><button class="btn small primary" data-act="preview">📄 見てみる</button></div>`, 'pv-msg');
     });
     if (cur) {
       html += bot(`${lines(cur.text)}${cur.help ? `<div class="hint">${lines(cur.help)}</div>` : ''}`, 'current');
@@ -265,7 +271,7 @@
       html += bot('おつかれさまでした！ 申込書に 書く ことが ぜんぶ そろいました。🎉<br>つぎは 必要な 書類を 見て、申込書の PDFを 作りましょう。<br><small>答えを なおしたい ときは、自分の 答え（右がわの 吹き出し）を タップするか、下の「☰ 目次から もどる」を おしてください。</small>', 'done');
     }
     html += '</div>';
-    html += `<div class="chat-dock">${error ? `<div class="chat-error">${esc(error)}</div>` : ''}${cur ? inputHTML(cur) : `<div class="row"><button class="btn primary" data-mode="docs">必要な 書類を 見る</button><a class="btn primary" href="#forms">申込書PDFを 作る</a></div><div class="row" style="margin-top:8px"><a class="btn" href="#score">点数を 見る</a></div><div class="row" style="margin-top:8px"><button class="btn small" data-act="restart">はじめから やりなおす</button></div>`}${answered.length ? `<div class="dock-sub">${cur ? '<button class="link-btn" data-act="back">← ひとつ もどる</button>' : ''}<button class="link-btn" data-act="toc">☰ 目次から もどる</button></div>` : ''}</div>`;
+    html += `<div class="chat-dock">${error ? `<div class="chat-error">${esc(error)}</div>` : ''}${cur ? inputHTML(cur) : `<div class="row"><button class="btn primary" data-act="preview">📄 申込書を 見る</button><button class="btn primary" data-mode="docs">必要な 書類を 見る</button></div><div class="row" style="margin-top:8px"><a class="btn" href="#forms">申込書PDFを 作る</a></div><div class="row" style="margin-top:8px"><a class="btn" href="#score">点数を 見る</a></div><div class="row" style="margin-top:8px"><button class="btn small" data-act="restart">はじめから やりなおす</button></div>`}${answered.length ? `<div class="dock-sub">${cur ? '<button class="link-btn" data-act="back">← ひとつ もどる</button>' : ''}<button class="link-btn" data-act="toc">☰ 目次から もどる</button></div>` : ''}</div>`;
     root.innerHTML = html;
     const log = root.querySelector('#chatLog');
     requestAnimationFrame(() => { log.scrollTop = log.scrollHeight; const inp = root.querySelector('.chat-dock input:not([type=checkbox])'); if (inp && !('ontouchstart' in window)) inp.focus({ preventScroll: true }); });
@@ -344,6 +350,7 @@
       if (a === 'restart') { if (confirm('チャットを はじめから やりなおしますか？（入力した 内容は のこります）')) { const Q2 = flow(); rewind(Q2, 0); } return; }
       if (a === 'keep' && cur) { const p = S().chat.prev[cur.id]; ans()[cur.id] = p; delete S().chat.prev[cur.id]; error = ''; Store.save(); return render(); }
       if (a === 'toc') return openToc();
+      if (a === 'preview') return window.App && window.App.openPreview();
       const toc = e.target.closest('[data-toc]'); if (toc) { e.target.closest('.chat-sheet-back').remove(); return rewind(Q, +toc.dataset.toc); }
       const one = e.target.closest('[data-edit-one]'); if (one) { const id = one.dataset.editOne; e.target.closest('.chat-sheet-back').remove(); const p = (S().chat.prev = S().chat.prev || {}); if (ans()[id]) p[id] = ans()[id]; delete ans()[id]; error = ''; Store.save(); return render(); }
       const from = e.target.closest('[data-edit-from]'); if (from) { e.target.closest('.chat-sheet-back').remove(); return rewind(Q, Q.findIndex(q => q.id === from.dataset.editFrom)); }
@@ -353,5 +360,7 @@
     el.addEventListener('submit', e => { e.preventDefault(); const cur = current(flow()); if (cur) answer(cur, el.querySelector('#chatIn').value); });
   }
 
-  window.Chat = { mount(el) { root = el; error = ''; bind(el); render(el); }, flow, sectionOf };
+  // 指定した質問を聞き直す（プレビューの「空いている欄」から）
+  function ask(id) { const A = ans(); const p = (S().chat.prev = S().chat.prev || {}); if (A[id]) { p[id] = A[id]; delete A[id]; } error = ''; Store.save(); }
+  window.Chat = { mount(el) { root = el; error = ''; bind(el); render(el); }, flow, sectionOf, ask };
 })();
